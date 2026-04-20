@@ -1,0 +1,85 @@
+---
+title: 'CraftEngine command reference'
+description: 'Complete reference for all CraftEngine commands — admin, player, debug — with usage syntax, required permissions, and descriptions.'
+---
+
+CraftEngine registers all of its commands under the `/craftengine` root, aliased as `/ce`. Commands are split into three categories: **admin** commands (operator-level), **player** commands (available to all players by default), and **debug** commands (operator-level, for development and diagnostics). Every command respects the permission node listed in `commands.yml`; you can disable individual commands by setting `enable: false` in that file, though a restart is required for changes to take effect.
+
+<Note>
+  Changes to `commands.yml` require a server restart to apply. Only the `enable` flag and custom
+  permission overrides are intended to be modified.
+</Note>
+
+## Admin commands
+
+Admin commands require the corresponding `ce.command.admin.*` permission (operator by default). All admin commands support a `--silent` / `-s` flag to suppress feedback messages.
+
+| Command | Usage | Permission | Description |
+|---|---|---|---|
+| reload | `/ce reload [config\|recipe\|pack\|all]` | `ce.command.admin.reload` | Reload plugin configuration, recipes, the resource pack, or all of the above. Omitting the argument reloads config only. |
+| upload | `/ce upload` | `ce.command.admin.upload` | Manually trigger a resource pack upload to the configured hosting provider. |
+| send-pack | `/ce feature send-pack <player>` | `ce.command.admin.send_resource_pack` | Resend the resource pack to one or more players by selector. |
+| item get | `/ce item get <id> [amount]` | `ce.command.admin.get_item` | Give yourself a custom item by its namespaced ID (e.g. `default:amethyst_torch`). Amount defaults to 1, maximum 9999. |
+| item give | `/ce item give <player> <id> [amount]` | `ce.command.admin.give_item` | Give a custom item to one or more players by selector. |
+| item clear | `/ce item clear <player> <id> [amount]` | `ce.command.admin.clear_item` | Remove a custom item from one or more players' inventories. Pass `0` as the amount to count without removing. |
+| item browser | `/ce item browser` | `ce.command.admin.item_browser` | Open the item browser GUI as an administrator. |
+| item search-usage | `/ce item search-usage` | `ce.command.admin.search_usage` | Search for recipes that consume a specific item. |
+| item search-recipe | `/ce item search-recipe` | `ce.command.admin.search_recipe` | Search for recipes that produce a specific item. |
+| totem-animation | `/ce feature totem-animation <players> <id> [sound] [volume] [pitch] [min-volume] [min-pitch]` | `ce.command.admin.totem_animation` | Trigger a totem-of-undying animation on the specified players using a custom item. Supports `--no-sound` to suppress the totem sound. |
+| resource enable | `/ce resource enable` | `ce.command.admin.resource` | Enable a resource pack entry. |
+| resource disable | `/ce resource disable` | `ce.command.admin.resource` | Disable a resource pack entry. |
+| resource list | `/ce resource list` | `ce.command.admin.resource` | List all registered resource packs. |
+| resource create | `/ce resource create` | `ce.command.admin.resource` | Create a new resource pack entry. |
+| locale set | `/ce feature locale set <player> <locale>` | `ce.command.admin.set_locale` | Override the display locale for a player (e.g. `zh_cn`, `en_us`). |
+| locale unset | `/ce feature locale unset` | `ce.command.admin.unset_locale` | Remove a previously set locale override, returning the player to their client locale. |
+| display-entity-view-distance-scale set | `/ce feature display-entity-view-distance-scale set <player> <scale>` | `ce.command.admin.set_display_entity_view_distance_scale` | Set the display entity view distance multiplier for a player. Valid range: `0.125`–`8`. |
+| entity-culling-distance-scale set | `/ce feature entity-culling-distance-scale set <player> <scale>` | `ce.command.admin.set_entity_culling_distance_scale` | Set the entity culling distance multiplier for a player. Valid range: `0.125`–`8`. |
+| toggle-entity-culling | `/ce feature toggle-entity-culling <player> [true\|false]` | `ce.command.admin.toggle_entity_culling` | Enable or disable entity culling for a specific player. Omitting the state toggles the current value. Requires `entity-culling` to be enabled in `config.yml`. |
+
+<Tip>
+  The `/ce reload` command accepts four optional arguments: `config` (default), `recipe`, `pack`,
+  and `all`. Using `all` regenerates the resource pack after reloading configuration.
+</Tip>
+
+## Player commands
+
+Player commands are available to all players by default (`ce.command.player.*` defaults to `true`). Players do not need operator status.
+
+| Command | Usage | Permission | Description |
+|---|---|---|---|
+| item browser | `/ce` | `ce.command.player.item_browser` | Open the item browser GUI. |
+| search-usage | `/search-usage` | `ce.command.player.search_usage` | Search for recipes that use a specific item. |
+| search-recipe | `/search-recipe` | `ce.command.player.search_recipe` | Search for recipes that produce a specific item. |
+
+## Debug commands
+
+Debug commands are intended for plugin developers and server administrators diagnosing issues. All require an explicit `ce.command.debug.*` permission (operator by default). Most commands use the `/ce debug` prefix.
+
+| Command | Usage | Permission | Description |
+|---|---|---|---|
+| setblock | `/ce debug setblock <location> <state>` | `ce.command.debug.setblock` | Place a custom block state at the specified location. Accepts CraftEngine block state syntax with tab-completion. |
+| spawn-furniture | `/ce debug spawn-furniture <location> <id> [variant]` | `ce.command.debug.spawn_furniture` | Spawn a furniture entity at the given location, optionally specifying a named variant. |
+| get-block-state-registry-id | `/ce debug get-block-state-registry-id` | `ce.command.debug.get_block_state_registry_id` | Print the registry ID of the targeted block state. |
+| get-block-internal-id | `/ce debug get-block-internal-id` | `ce.command.debug.get_block_internal_id` | Print the internal CraftEngine ID of the targeted block. |
+| visual-state-usage | `/ce debug visual-state-usage` | `ce.command.debug.state_usage` | Display how many client-side (visual/appearance) block states are in use. Also aliased as `appearance-state-usage` and `clientside-state-usage`. |
+| auto-state-usage | `/ce debug auto-state-usage` | `ce.command.debug.state_usage` | Display how many auto-assigned block states are in use. |
+| real-state-usage | `/ce debug real-state-usage` | `ce.command.debug.state_usage` | Display how many real (server-side) block states are in use. Also aliased as `serverside-state-usage`. |
+| item-data | `/ce debug item-data` | `ce.command.debug.item_data` | Print a formatted, colour-coded view of the NBT/component data on the item currently held in your main hand. |
+| target-block | `/ce debug target-block [--this]` | `ce.command.debug.target_block` | Print detailed information (block data string, internal state, storage flag, and tags) about the block you are looking at. Add `--this` to inspect the block at your own feet. |
+| is-section-injected | `/ce debug is-section-injected` | `ce.command.debug.is_section_injected` | Check whether CraftEngine has injected its data into the current chunk section. |
+| clear-cooldown | `/ce debug clear-cooldown` | `ce.command.debug.clear_cooldown` | Clear all interaction cooldowns tracked by CraftEngine. |
+| migrate-templates | `/ce debug migrate-templates` | `ce.command.debug.migrate_templates` | Migrate legacy template references to the current format. |
+| is-chunk-persistent-loaded | `/ce debug is-chunk-persistent-loaded` | `ce.command.debug.is_chunk_persistent_loaded` | Check whether the chunk at your location is persistently loaded. |
+| entity-id | `/ce debug entity-id` | `ce.command.debug.entity_id` | Print the entity ID of the entity you are looking at. |
+| save-default-resources | `/ce debug save-default-resources` | `ce.command.debug.save_default_resources` | Save the built-in default resource files to disk for inspection. |
+| clean-cache | `/ce debug clean-cache` | `ce.command.debug.clean_cache` | Clear all internal caches maintained by CraftEngine. |
+| custom-model-data | `/ce debug custom-model-data` | `ce.command.debug.custom_model_data` | Print the custom model data values currently assigned to registered items. |
+| image | `/ce debug image` | `ce.command.debug.image` | Print debug information about registered image/emoji resources. |
+| furniture | `/ce debug furniture` | `ce.command.debug.furniture` | Print debug information about furniture entities near you. |
+| optimize-furniture-structure | `/ce debug optimize-furniture-structure` | `ce.command.debug.optimize_furniture_structure` | Run the furniture structure optimisation pass and report the result. |
+| test | `/ce debug test` | `ce.command.debug.test` | Execute the internal test routine. |
+
+<Warning>
+  `generate-internal-assets` is disabled by default (`enable: false` in `commands.yml`) and is
+  intended for internal development use only. Do not enable it on production servers.
+</Warning>

@@ -1,0 +1,71 @@
+---
+title: "Furniture system and entity collision configuration"
+description: "Configure CraftEngine's furniture system: entity visibility, collision entity type, and client-side entity culling for large deployments."
+---
+
+CraftEngine's furniture system places invisible base entities in the world to track furniture state and hitboxes. The options below — under `furniture:`, `client-optimization:`, and `light-system:` in `config.yml` — let you control how those entities behave, how they are culled on the client side, and how lighting is updated for custom light-emitting blocks.
+
+## Furniture entities
+
+<ParamField path="furniture.hide-base-entity" type="boolean" default="true">
+  Hide the internal base entities that CraftEngine uses to store furniture metadata. These entities are invisible by design; keeping them hidden also improves server performance by reducing the data the server sends to clients. Recommended to leave enabled.
+</ParamField>
+
+<ParamField path="furniture.collision-entity-type" type="string" default="interaction">
+  Entity type used to represent furniture hitboxes. **Requires a full server restart to apply.**
+
+  - `interaction` — Best performance. Uses the Minecraft `Interaction` entity, which has minimal overhead.
+  - `boat` — Better compatibility with anti-cheat plugins that do not recognise `Interaction` entities.
+</ParamField>
+
+## Client-side entity culling
+
+<Warning>
+  The `client-optimization.entity-culling` section is **Premium exclusive**. It has no effect on the free edition of CraftEngine.
+</Warning>
+
+Entity culling reduces client rendering load by hiding furniture and block entities that players cannot currently see. The server performs ray-tracing to determine visibility and then sends hide/show packets only when a player's view actually changes.
+
+<ParamField path="client-optimization.entity-culling.enable" type="boolean" default="true">
+  Enable server-side entity culling. **Requires a restart to fully apply.**
+</ParamField>
+
+<ParamField path="client-optimization.entity-culling.ray-tracing" type="boolean" default="true">
+  Use server-side ray-tracing to determine whether a furniture or block entity is occluded by blocks. When disabled, only distance-based culling is applied.
+</ParamField>
+
+<ParamField path="client-optimization.entity-culling.view-distance" type="number" default="64">
+  Maximum distance in blocks at which entities are considered for culling. Entities beyond this distance are always hidden. Set to `-1` to apply culling at any distance (no limit).
+</ParamField>
+
+<ParamField path="client-optimization.entity-culling.threads" type="number" default="1">
+  Number of threads dedicated to ray-tracing calculations. Increase on servers with many players and large amounts of furniture if the culling thread becomes a bottleneck.
+</ParamField>
+
+### Rate limiting
+
+Rate limiting prevents a sudden burst of visibility-change packets when many entities come into or out of view at once, which can spike both server bandwidth and client frame time.
+
+<ParamField path="client-optimization.entity-culling.rate-limiting.enable" type="boolean" default="true">
+  Enable rate limiting on entity visibility change packets.
+</ParamField>
+
+<ParamField path="client-optimization.entity-culling.rate-limiting.bucket-size" type="number" default="1000">
+  Maximum number of entity visibility changes that can be queued for a single player before new changes are deferred.
+</ParamField>
+
+<ParamField path="client-optimization.entity-culling.rate-limiting.restore-per-tick" type="number" default="25">
+  Maximum number of entity visibility changes sent to a single player per server tick. Lower values spread the packet load more evenly over time at the cost of slightly delayed visibility updates.
+</ParamField>
+
+## Light system
+
+CraftEngine includes a light system that enables custom blocks to emit light. These options are under `light-system:` in `config.yml`.
+
+<ParamField path="light-system.enable" type="boolean" default="true">
+  Enable the light system. Required for any custom block that has a non-zero light emission value. Disable only if you have no light-emitting custom blocks and want to reduce processing overhead.
+</ParamField>
+
+<ParamField path="light-system.async-update" type="boolean" default="true">
+  Process light updates asynchronously. This prevents light recalculation from stalling the main server thread when many blocks are placed or removed at once.
+</ParamField>

@@ -1,0 +1,118 @@
+---
+title: 'CraftEngine Java API overview'
+description: 'Overview of the CraftEngine Java API — the public classes, Bukkit events, and integration patterns available to plugin developers.'
+---
+
+CraftEngine exposes a stable Java API that lets you query and manipulate custom blocks, items, and furniture from your own Paper or Folia plugins. The public surface is intentionally small: three static utility classes and a set of Bukkit events cover the vast majority of integration needs. Everything else is internal and subject to change without notice.
+
+## What the API provides
+
+<CardGroup cols={2}>
+  <Card title="Custom blocks" icon="cube" href="/api/blocks">
+    Place, remove, and query custom block states at any world location.
+  </Card>
+  <Card title="Custom items" icon="sword" href="/api/items">
+    Look up loaded custom items by ID or by an existing `ItemStack`.
+  </Card>
+  <Card title="Furniture" icon="chair" href="/api/furniture">
+    Spawn, remove, and ray-trace furniture entities in the world.
+  </Card>
+  <Card title="Events" icon="bell" href="/api/events">
+    React to block and furniture lifecycle changes through Bukkit events.
+  </Card>
+</CardGroup>
+
+## Static API classes
+
+Three final, non-instantiable classes form the entire public API surface.
+
+| Class | Purpose |
+|---|---|
+| `CraftEngineBlocks` | Place / remove / query custom blocks in a world |
+| `CraftEngineItems` | Look up and identify custom items |
+| `CraftEngineFurniture` | Spawn / remove / ray-trace furniture entities |
+
+All three are in the `net.momirealms.craftengine.bukkit.api` package. Import them directly — no plugin instance or service lookup is required.
+
+```java
+import net.momirealms.craftengine.bukkit.api.CraftEngineBlocks;
+import net.momirealms.craftengine.bukkit.api.CraftEngineItems;
+import net.momirealms.craftengine.bukkit.api.CraftEngineFurniture;
+```
+
+## Initialization timing
+
+<Warning>
+  Do **not** call `loadedBlocks()`, `loadedItems()`, or `loadedFurniture()` inside `onEnable()`. CraftEngine loads its content asynchronously after the server starts, so these maps will be empty at that point.
+</Warning>
+
+Instead, listen for `CraftEngineReloadEvent` and populate your own caches inside that handler. The event fires once after the initial content load and again after every `/ce reload`.
+
+```java
+@EventHandler
+public void onCraftEngineReload(CraftEngineReloadEvent event) {
+    // Safe to access loaded content here
+    Map<Key, CustomBlock> blocks = CraftEngineBlocks.loadedBlocks();
+    Map<Key, CustomItem<ItemStack>> items = CraftEngineItems.loadedItems();
+    Map<Key, CustomFurniture> furniture = CraftEngineFurniture.loadedFurniture();
+
+    // Rebuild your own plugin's caches
+    myPlugin.refreshCaches(blocks, items, furniture);
+}
+```
+
+The event also exposes `isFirstReload()` so you can distinguish the server-startup load from a live reload triggered by a command.
+
+## Event system overview
+
+CraftEngine fires Bukkit events for all major lifecycle moments. Every player-facing event extends `PlayerEvent`; async events fire off the main thread.
+
+**Block events**
+
+| Event | Cancellable | When it fires |
+|---|---|---|
+| `CustomBlockAttemptPlaceEvent` | Yes | Before placement is committed |
+| `CustomBlockPlaceEvent` | Yes | After a custom block is placed |
+| `CustomBlockBreakEvent` | Yes | When a player breaks a custom block |
+| `CustomBlockInteractEvent` | Yes | When a player right-clicks a custom block |
+
+**Furniture events**
+
+| Event | Cancellable | When it fires |
+|---|---|---|
+| `FurnitureAttemptPlaceEvent` | Yes | Before furniture is placed |
+| `FurniturePlaceEvent` | Yes | After furniture is placed |
+| `FurnitureBreakEvent` | Yes | When furniture is destroyed |
+| `FurnitureInteractEvent` | Yes | When a player right-clicks furniture |
+| `FurnitureHitEvent` | Yes | When a player left-clicks furniture |
+
+**System events**
+
+| Event | Cancellable | When it fires |
+|---|---|---|
+| `CraftEngineReloadEvent` | No | After all content is reloaded |
+| `AsyncResourcePackGenerateEvent` | No | After the resource pack is generated (async) |
+| `AsyncResourcePackCacheEvent` | No | When the resource pack cache is updated (async) |
+
+## Thread safety
+
+CraftEngine ships with first-class Folia support. The static API methods that read world state (`isCustomBlock`, `getCustomBlockState`, etc.) must be called from a thread that owns the region containing the relevant chunk. The `loadedBlocks()`, `loadedItems()`, and `loadedFurniture()` maps are unmodifiable and safe to read from any thread after `CraftEngineReloadEvent` has fired.
+
+Async events (`AsyncResourcePackGenerateEvent`, `AsyncResourcePackCacheEvent`) fire off the main thread. Do not touch world state inside those handlers without proper scheduling.
+
+## Next steps
+
+<Steps>
+  <Step title="Add the dependency">
+    Add the Maven repository and Gradle/Maven coordinates to your build script. See the [dependency setup guide](/api/dependency-setup).
+  </Step>
+  <Step title="Declare the plugin dependency">
+    Add `depend` or `softdepend` to your `plugin.yml` so CraftEngine is guaranteed to load before your plugin.
+  </Step>
+  <Step title="Listen for CraftEngineReloadEvent">
+    Register the event listener and build your caches inside the handler before calling any `loaded*()` method.
+  </Step>
+  <Step title="Use the API">
+    Call methods on `CraftEngineBlocks`, `CraftEngineItems`, and `CraftEngineFurniture` to interact with custom content.
+  </Step>
+</Steps>

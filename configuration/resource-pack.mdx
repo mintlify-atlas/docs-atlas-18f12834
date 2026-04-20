@@ -1,0 +1,427 @@
+---
+title: "Resource pack generation and delivery"
+description: "Configure how CraftEngine generates, optimizes, protects, and delivers the resource pack to players — including hosting, validation, and obfuscation options."
+---
+
+CraftEngine generates a resource pack on startup by merging your custom assets with any external packs, then delivers it to connecting players. All options below live under the `resource-pack:` key in `config.yml`.
+
+## General settings
+
+<ParamField path="resource-pack.path" type="string" default="./generated/resource_pack.zip">
+  Output path for the generated resource pack. Accepts an absolute or relative path.
+</ParamField>
+
+<ParamField path="resource-pack.supported-version.min" type="string" default="server">
+  Minimum client version the pack supports. Use `server` to match the running server version, or specify an explicit version such as `1.20.1`.
+</ParamField>
+
+<ParamField path="resource-pack.supported-version.max" type="string" default="latest">
+  Maximum client version the pack supports. Use `latest` to always target the newest release, or pin to a version such as `1.21.8`.
+</ParamField>
+
+<ParamField path="resource-pack.description" type="string" default="&lt;gray&gt;CraftEngine ResourcePack&lt;/gray&gt;">
+  Pack description shown in the Minecraft resource pack selection screen. Supports MiniMessage formatting.
+</ParamField>
+
+<ParamField path="resource-pack.remove-tinted-leaves-particle" type="boolean" default="true">
+  Remove the tinted-leaves particle effect introduced in 1.21.5. Disable if your pack deliberately uses this particle.
+</ParamField>
+
+<ParamField path="resource-pack.overlay-format" type="string" default="ce_overlay_{version}">
+  Naming pattern for overlay folders. The `{version}` placeholder is replaced with the relevant client version number.
+</ParamField>
+
+<ParamField path="resource-pack.override-uniform-font" type="boolean" default="true">
+  When enabled, images registered in the `minecraft:default` font also work in `minecraft:uniform`.
+</ParamField>
+
+<ParamField path="resource-pack.generate-mod-assets" type="boolean" default="false">
+  Generate assets for the CraftEngine Fabric mod, used with client-side tools such as Axiom and WorldEdit.
+</ParamField>
+
+<ParamField path="resource-pack.exclude-core-shaders" type="boolean" default="false">
+  Strip core shaders from the generated pack. Enable this if you want to ship your own shader files separately.
+</ParamField>
+
+## Merging external packs
+
+CraftEngine can pull in assets from other plugins automatically.
+
+<ParamField path="resource-pack.merge-external-folders" type="string[]">
+  List of folder paths whose contents are merged into the pack at generation time. Paths are relative to the server root.
+
+  ```yaml
+  merge-external-folders:
+    - "ModelEngine/resource pack"
+  ```
+</ParamField>
+
+<ParamField path="resource-pack.merge-external-zip-files" type="string[]">
+  List of `.zip` file paths to merge into the pack.
+
+  ```yaml
+  merge-external-zip-files:
+    - "CustomNameplates/resourcepack.zip"
+    - "BetterModel/build.zip"
+  ```
+</ParamField>
+
+<ParamField path="resource-pack.exclude-file-extensions" type="string[]" default='["md", "psd", "bbmodel", "db", "ini", "DS_Store"]'>
+  File extensions that are stripped from all merged sources before the pack is built. Useful for removing editor metadata.
+</ParamField>
+
+## Duplicated file handling
+
+When multiple sources contribute the same file path, `duplicated-files-handler` decides what to do. Each entry has a `term` that matches files and a `resolution` that controls how conflicts are resolved.
+
+### Term types
+
+| Type | Description |
+|------|-------------|
+| `any_of` | Matches if any child term matches. Use to combine multiple conditions. |
+| `parent_path_suffix` | Matches files whose parent directory ends with the given `suffix`. |
+| `exact` | Matches a file at an exact `path`. |
+| `filename` | Matches any file with the given `name` regardless of directory. |
+| `contains` | Matches a file whose path contains the given `path` fragment. |
+
+### Resolution types
+
+| Type | Description |
+|------|-------------|
+| `merge_legacy_model` | Merges pre-1.21.2 item model overrides. Use for `minecraft/models/item`. |
+| `merge_json` | Deep- or shallow-merges JSON files. Set `deeply: true` for recursive merge. |
+| `merge_pack_mcmeta` | Merges `pack.mcmeta` files, preserving supported format ranges. |
+| `retain_matching` | Keeps the file that satisfies the given nested `term`. |
+| `merge_atlas` | Merges `minecraft/atlases` texture atlas sources. |
+| `merge_font` | Merges font definition files such as `default.json` and `uniform.json`. |
+
+<Accordion title="Default duplicated-files-handler configuration">
+
+```yaml
+duplicated-files-handler:
+  - term:
+      type: any_of
+      terms:
+        - type: parent_path_suffix
+          suffix: "minecraft/models/item"
+    resolution:
+      type: merge_legacy_model
+
+  - term:
+      type: any_of
+      terms:
+        - type: parent_path_suffix
+          suffix: "minecraft/items"
+    resolution:
+      type: merge_json
+      deeply: true
+
+  - term:
+      type: exact
+      path: "pack.mcmeta"
+    resolution:
+      type: merge_pack_mcmeta
+
+  - term:
+      type: exact
+      path: "pack.png"
+    resolution:
+      type: retain_matching
+      term:
+        type: contains
+        path: "resources/default/resourcepack"
+
+  - term:
+      type: filename
+      name: "sounds.json"
+    resolution:
+      type: merge_json
+      deeply: false
+
+  - term:
+      type: parent_path_suffix
+      suffix: "minecraft/atlases"
+    resolution:
+      type: merge_atlas
+
+  - term:
+      type: any_of
+      terms:
+        - type: exact
+          path: "assets/minecraft/font/default.json"
+        - type: exact
+          path: "assets/minecraft/font/uniform.json"
+    resolution:
+      type: merge_font
+```
+
+</Accordion>
+
+## Validation
+
+CraftEngine can inspect the generated pack for common errors before it is delivered to players.
+
+<ParamField path="resource-pack.validation.enable" type="boolean" default="true">
+  Enable resource pack validation. Disable only if your pack is already fully compliant and you want faster generation.
+</ParamField>
+
+<ParamField path="resource-pack.validation.fix-atlas" type="boolean" default="true">
+  Automatically add textures to the atlas when they are referenced by a model but not listed in any atlas source file.
+</ParamField>
+
+<ParamField path="resource-pack.validation.fix-missing-texture" type="boolean" default="true">
+  Fix model errors that arise when the `#missing` sentinel texture is referenced by an atlas entry.
+</ParamField>
+
+## Optimization
+
+<ParamField path="resource-pack.optimization.enable" type="boolean" default="false">
+  Master switch for pack optimization. When enabled, texture and JSON options below take effect.
+</ParamField>
+
+<ParamField path="resource-pack.optimization.texture.enable" type="boolean" default="true">
+  Enable PNG texture optimization when the optimization master switch is on.
+</ParamField>
+
+<ParamField path="resource-pack.optimization.texture.zopfli-iterations" type="number" default="0">
+  Number of Zopfli iterations for PNG compression. Higher values produce smaller files at the cost of much longer generation time. `0` disables Zopfli. Values between `4` and `8` are generally sufficient.
+</ParamField>
+
+<ParamField path="resource-pack.optimization.texture.exclude" type="string[]">
+  Texture paths excluded from optimization. Add any texture that uses colour data read by a shader.
+
+  ```yaml
+  exclude:
+    - assets/minecraft/textures/block/do_not_optimize
+  ```
+</ParamField>
+
+<ParamField path="resource-pack.optimization.json.enable" type="boolean" default="true">
+  Strip whitespace and comments from JSON files when the optimization master switch is on.
+</ParamField>
+
+<ParamField path="resource-pack.optimization.json.exclude" type="string[]">
+  JSON file paths excluded from minification.
+</ParamField>
+
+## Protection
+
+<Warning>
+  All options under `resource-pack.protection` are **Premium exclusive**. They have no effect on the free edition of CraftEngine.
+</Warning>
+
+<ParamField path="resource-pack.protection.unprotected-copy" type="boolean" default="false">
+  Generate a second, unprotected copy of the pack alongside the protected one. The unprotected copy is built with the standard Java library and is compatible with tools such as Bedrock resource pack converters.
+</ParamField>
+
+### Crash-tools methods
+
+These options embed data that crashes extraction tools used by resource pack thieves. Methods that increase pack size are noted.
+
+<ParamField path="resource-pack.protection.crash-tools.method-1" type="boolean" default="false">
+  Enable crash-tools protection method 1.
+</ParamField>
+
+<ParamField path="resource-pack.protection.crash-tools.method-2" type="boolean" default="false">
+  Enable crash-tools protection method 2. Increases pack size by approximately 64 KB.
+</ParamField>
+
+<ParamField path="resource-pack.protection.crash-tools.method-3" type="boolean" default="false">
+  Enable crash-tools protection method 3. Increases pack size by approximately 0.67 MB.
+</ParamField>
+
+<ParamField path="resource-pack.protection.crash-tools.method-4" type="boolean" default="false">
+  Enable crash-tools protection method 4.
+</ParamField>
+
+<ParamField path="resource-pack.protection.crash-tools.method-5" type="boolean" default="true">
+  Enable crash-tools protection method 5. Reduces pack size while preventing many extraction tools from reading the file.
+</ParamField>
+
+<ParamField path="resource-pack.protection.crash-tools.method-6" type="boolean" default="false">
+  Enable crash-tools protection method 6. Increases pack size by a percentage relative to the original size.
+</ParamField>
+
+<ParamField path="resource-pack.protection.crash-tools.method-7" type="boolean" default="false">
+  Enable crash-tools protection method 7.
+</ParamField>
+
+### Additional protection options
+
+<ParamField path="resource-pack.protection.incorrect-crc" type="boolean" default="false">
+  Write invalid CRC checksums into the zip to confuse extraction tools.
+</ParamField>
+
+<ParamField path="resource-pack.protection.fake-file-size" type="boolean" default="false">
+  Report artificially inflated file sizes in the zip directory, causing many tools to fail when reading entries.
+</ParamField>
+
+<ParamField path="resource-pack.protection.escape-json" type="boolean" default="false">
+  Apply JSON escaping to make JSON files human-unreadable without affecting Minecraft's parser.
+</ParamField>
+
+<ParamField path="resource-pack.protection.fake-directory" type="boolean" default="false">
+  Insert fake directory entries to obscure the pack's real file structure.
+</ParamField>
+
+<ParamField path="resource-pack.protection.break-texture" type="boolean" default="false">
+  Corrupt texture files in a way that Minecraft can still read but most image viewers and extraction tools cannot.
+</ParamField>
+
+### Obfuscation
+
+<ParamField path="resource-pack.protection.obfuscation.enable" type="boolean" default="false">
+  Enable full pack obfuscation. When active, namespaces, paths, and textures are scrambled according to the settings below.
+</ParamField>
+
+<ParamField path="resource-pack.protection.obfuscation.seed" type="number" default="0">
+  Seed used for obfuscation. `0` generates a random seed on every pack build.
+</ParamField>
+
+<ParamField path="resource-pack.protection.obfuscation.overlay.length" type="number" default="4">
+  Character length of obfuscated overlay directory names. Set to `0` to disable overlay obfuscation.
+</ParamField>
+
+<ParamField path="resource-pack.protection.obfuscation.namespace.amount" type="number" default="32">
+  Number of fake namespaces generated to obscure real content. Set to `0` to disable.
+</ParamField>
+
+<ParamField path="resource-pack.protection.obfuscation.namespace.length" type="number" default="2">
+  Character length of each obfuscated namespace name.
+</ParamField>
+
+<ParamField path="resource-pack.protection.obfuscation.path.depth" type="number" default="4">
+  Maximum directory depth of obfuscated paths.
+</ParamField>
+
+<ParamField path="resource-pack.protection.obfuscation.path.length" type="number" default="2">
+  Character length of each obfuscated path segment.
+</ParamField>
+
+<ParamField path="resource-pack.protection.obfuscation.path.anti-unzip" type="boolean" default="false">
+  Prevent straightforward extraction by manipulating the zip structure.
+</ParamField>
+
+<ParamField path="resource-pack.protection.obfuscation.atlas.prefix" type="string" default="atlas">
+  Folder prefix for generated texture atlases used during obfuscation.
+</ParamField>
+
+<ParamField path="resource-pack.protection.obfuscation.atlas.images-per-canvas" type="number" default="256">
+  Number of individual textures packed into each combined atlas image. Larger values reduce pack size but increase generation time. Set to `-1` to disable atlas packing.
+</ParamField>
+
+<ParamField path="resource-pack.protection.obfuscation.bypass-textures" type="string[]">
+  Texture resource locations excluded from obfuscation. Use `@vanilla_textures` to bypass all vanilla textures.
+
+  ```yaml
+  bypass-textures:
+    - minecraft:block/farmland
+    - "@vanilla_textures"
+  ```
+</ParamField>
+
+<ParamField path="resource-pack.protection.obfuscation.bypass-models" type="string[]">
+  Model resource locations excluded from obfuscation. Use `@vanilla_models` to bypass all vanilla models.
+
+  ```yaml
+  bypass-models:
+    - custom:item/do_not_obfuscate
+    - "@vanilla_models"
+  ```
+</ParamField>
+
+<ParamField path="resource-pack.protection.obfuscation.bypass-sounds" type="string[]">
+  Sound resource locations excluded from obfuscation. Use `@vanilla_sounds` to bypass all vanilla sounds.
+</ParamField>
+
+<ParamField path="resource-pack.protection.obfuscation.bypass-equipments" type="string[]">
+  Equipment resource locations excluded from obfuscation.
+</ParamField>
+
+## Delivery
+
+These options control how the pack is sent to players when they join.
+
+<ParamField path="resource-pack.delivery.send-on-join" type="boolean" default="true">
+  Send the resource pack to players automatically when they connect to the server.
+</ParamField>
+
+<ParamField path="resource-pack.delivery.kick-if-declined" type="boolean" default="true">
+  Disconnect players who decline the resource pack prompt.
+</ParamField>
+
+<ParamField path="resource-pack.delivery.kick-if-failed-to-apply" type="boolean" default="false">
+  Disconnect players whose client reports a failure while applying the pack.
+</ParamField>
+
+<ParamField path="resource-pack.delivery.prompt" type="string">
+  Message shown to players in the resource pack acceptance dialog. Supports MiniMessage formatting and `<newline>` for line breaks.
+
+  ```yaml
+  prompt: "<yellow>To fully experience our server,<newline>please accept our custom resource pack.</yellow>"
+  ```
+</ParamField>
+
+<ParamField path="resource-pack.delivery.strict-player-uuid-validation" type="boolean" default="true">
+  Require a verified player UUID to authorise download requests, preventing anonymous access to the pack URL.
+</ParamField>
+
+<ParamField path="resource-pack.delivery.auto-upload" type="boolean" default="true">
+  Upload the resource pack to the configured host automatically after each generation. When disabled, run `/ce upload` to trigger uploads manually.
+</ParamField>
+
+<ParamField path="resource-pack.delivery.resend-on-upload" type="boolean" default="true">
+  Re-send the pack to all online players after a successful upload so they receive the latest version without reconnecting.
+</ParamField>
+
+<ParamField path="resource-pack.delivery.file-to-upload" type="string" default="./generated/resource_pack.zip">
+  Path to the file that is uploaded to the host. Normally the same as `path`, but can differ if you want to upload the unprotected copy instead.
+</ParamField>
+
+## Hosting
+
+CraftEngine's built-in HTTP server hosts the resource pack directly from your Minecraft server. If you use BungeeCord or Velocity, consider a proxy-side plugin for delivery instead.
+
+<ParamField path="resource-pack.hosting[].type" type="string" default="self">
+  Host type. Currently `self` is supported, which uses CraftEngine's built-in HTTP server.
+</ParamField>
+
+<ParamField path="resource-pack.hosting[].ip" type="string" default="localhost">
+  Public IP address or hostname players use to reach the file server. Replace `localhost` with your server's public IP; otherwise the URL only works on the local machine.
+</ParamField>
+
+<ParamField path="resource-pack.hosting[].port" type="number" default="8163">
+  TCP port the built-in HTTP server listens on. Open this port in your firewall.
+</ParamField>
+
+<ParamField path="resource-pack.hosting[].protocol" type="string" default="http">
+  Protocol used in the download URL sent to clients. Set to `https` if you terminate TLS in front of CraftEngine.
+</ParamField>
+
+<ParamField path="resource-pack.hosting[].deny-non-minecraft-request" type="boolean" default="true">
+  Reject download requests that do not originate from the Minecraft client's resource pack downloader.
+</ParamField>
+
+<ParamField path="resource-pack.hosting[].one-time-token" type="boolean" default="true">
+  Issue single-use tokens in download URLs so that each link can only be used once.
+</ParamField>
+
+<ParamField path="resource-pack.hosting[].strict-validation" type="boolean" default="false">
+  Apply additional request validation beyond the one-time token check.
+</ParamField>
+
+<ParamField path="resource-pack.hosting[].rate-limiting.max-bandwidth-per-second" type="number" default="5000000">
+  Maximum total bytes per second served to all players combined (default: 5 MB/s).
+</ParamField>
+
+<ParamField path="resource-pack.hosting[].rate-limiting.min-download-speed-per-player" type="number" default="50000">
+  Minimum bytes per second allocated to each downloading player (default: 50 KB/s).
+</ParamField>
+
+<ParamField path="resource-pack.hosting[].rate-limiting.qps-per-ip" type="string" default="5/60">
+  Maximum number of requests per IP address in a rolling window, expressed as `requests/seconds`.
+</ParamField>
+
+<Tip>
+  If you run BungeeCord or Velocity, set `send-on-join: false` in CraftEngine and handle resource pack delivery in a proxy-side plugin to avoid sending the pack twice.
+</Tip>

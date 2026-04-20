@@ -1,0 +1,113 @@
+{
+  "projectType": "framework",
+  "projectName": "CraftEngine",
+  "projectDescription": "A Paper/Folia plugin framework for dynamically creating custom blocks, items, furniture, and recipes through YAML configuration and a Java API.",
+  "theme": "palm",
+  "primaryColor": "#4595db",
+  "lightColor": "#5ebf9e",
+  "darkColor": "#7c7c7c",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Configuration",
+            "pages": [
+              "configuration/overview",
+              "configuration/resource-pack",
+              "configuration/items",
+              "configuration/blocks",
+              "configuration/furniture",
+              "configuration/recipes"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/custom-blocks",
+              "guides/custom-items",
+              "guides/furniture",
+              "guides/custom-recipes",
+              "guides/templates",
+              "guides/resource-pack-hosting"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "reference/commands",
+              "reference/permissions",
+              "reference/block-behaviors",
+              "reference/item-behaviors",
+              "reference/loot-tables"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Overview",
+            "pages": [
+              "api/introduction",
+              "api/dependency-setup"
+            ]
+          },
+          {
+            "group": "Java API",
+            "pages": [
+              "api/blocks",
+              "api/items",
+              "api/furniture",
+              "api/events"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Dynamic custom block creation using vanilla block states as proxies",
+    "Custom item system with behaviors, models, and equipment support",
+    "Furniture system with hitboxes, seats, and multi-part display entities",
+    "Custom recipe support (shaped, shapeless, cooking, smithing, stonecutting, brewing)",
+    "Automatic resource pack generation, optimization, and delivery",
+    "Template system for reusable block states, models, and loot tables",
+    "Premium resource pack obfuscation and protection features",
+    "Java API with Bukkit events for plugin interoperability",
+    "Folia support for multi-threaded servers",
+    "Custom emoji/image rendering via Unicode font injection"
+  ],
+  "publicApiSurface": [
+    "CraftEngineBlocks.loadedBlocks()",
+    "CraftEngineBlocks.place(Location, Key, boolean)",
+    "CraftEngineBlocks.remove(Block, Player, boolean, boolean, boolean)",
+    "CraftEngineBlocks.isCustomBlock(Block)",
+    "CraftEngineItems.loadedItems()",
+    "CraftEngineItems.byId(Key)",
+    "CraftEngineItems.byItemStack(ItemStack)",
+    "CraftEngineItems.isCustomItem(ItemStack)",
+    "CraftEngineFurniture.loadedFurniture()",
+    "CraftEngineFurniture.place(Location, Key)",
+    "CraftEngineFurniture.remove(Entity, boolean, boolean)",
+    "CraftEngineFurniture.rayTrace(Player, double)",
+    "CraftEngineReloadEvent",
+    "CustomBlockPlaceEvent",
+    "CustomBlockBreakEvent",
+    "CustomBlockInteractEvent",
+    "FurniturePlaceEvent",
+    "FurnitureBreakEvent",
+    "FurnitureInteractEvent",
+    "AsyncResourcePackGenerateEvent"
+  ]
+}

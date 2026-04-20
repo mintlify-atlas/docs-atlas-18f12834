@@ -1,0 +1,465 @@
+---
+title: 'CraftEngine Bukkit events reference'
+description: 'Reference for all CraftEngine Bukkit events — custom block and furniture lifecycle events — with listener examples and cancellation behavior.'
+---
+
+CraftEngine fires Bukkit events for every significant lifecycle action involving custom blocks and furniture, plus two system-level async events for resource pack generation. Register listeners in the standard Bukkit way using `@EventHandler` — no special API calls are needed.
+
+```java
+import net.momirealms.craftengine.bukkit.api.event.*;
+```
+
+All player-facing events extend `PlayerEvent`. Events marked **async** fire off the main thread; do not touch world state inside those handlers without scheduling back to the appropriate region thread.
+
+---
+
+## System events
+
+<AccordionGroup>
+
+  <Accordion title="CraftEngineReloadEvent">
+
+**Class:** `net.momirealms.craftengine.bukkit.api.event.CraftEngineReloadEvent`
+
+**Cancellable:** No
+
+**Thread:** Main
+
+Fired after CraftEngine finishes (re)loading all content — custom blocks, items, furniture, images, and resource packs. This is the correct place to access `loadedBlocks()`, `loadedItems()`, and `loadedFurniture()` and to populate any caches your plugin maintains.
+
+**Key methods**
+
+| Method | Return type | Description |
+|---|---|---|
+| `plugin()` | `BukkitCraftEngine` | The CraftEngine plugin instance |
+| `isFirstReload()` | `boolean` | `true` if this is the initial server-startup load |
+
+```java
+@EventHandler
+public void onCraftEngineReload(CraftEngineReloadEvent event) {
+    if (event.isFirstReload()) {
+        getLogger().info("CraftEngine initial load complete.");
+    } else {
+        getLogger().info("CraftEngine reloaded.");
+    }
+
+    // Rebuild your caches
+    myBlockCache = CraftEngineBlocks.loadedBlocks();
+    myItemCache  = CraftEngineItems.loadedItems();
+}
+```
+
+  </Accordion>
+
+  <Accordion title="AsyncResourcePackGenerateEvent">
+
+**Class:** `net.momirealms.craftengine.bukkit.api.event.AsyncResourcePackGenerateEvent`
+
+**Cancellable:** No
+
+**Thread:** Async
+
+Fired when CraftEngine finishes generating the merged resource pack. Use this event to inspect or post-process the generated files. Because this event is async, do not interact with Bukkit world state from inside the handler.
+
+**Key methods**
+
+| Method | Return type | Description |
+|---|---|---|
+| `resourcePackFolder()` | `Path` | Path to the generated (unzipped) resource pack directory |
+| `zipFilePath()` | `Path` | Path to the final `.zip` resource pack file |
+
+```java
+@EventHandler
+public void onResourcePackGenerate(AsyncResourcePackGenerateEvent event) {
+    getLogger().info("Resource pack zip: " + event.zipFilePath());
+    // You can read or copy the files here
+}
+```
+
+  </Accordion>
+
+  <Accordion title="AsyncResourcePackCacheEvent">
+
+**Class:** `net.momirealms.craftengine.bukkit.api.event.AsyncResourcePackCacheEvent`
+
+**Cancellable:** No
+
+**Thread:** Async
+
+Fired when a user runs `/ce reload pack` and CraftEngine begins caching resource pack content into its virtual file system. Use this event to inject external resource packs (ZIP files or directories) into the build pipeline.
+
+<Note>
+  The caching system will not update your pack if its file size and last-modification time are unchanged between reloads. Make sure at least one of those attributes changes if you need the cache to recognise an updated pack.
+</Note>
+
+**Key methods**
+
+| Method | Return type | Description |
+|---|---|---|
+| `cacheData()` | `PackCacheData` | The raw cache data object (advanced use) |
+| `registerExternalResourcePack(Path)` | `void` | Registers a `.zip` file or directory as an external pack to merge |
+
+**`registerExternalResourcePack` throws** `IllegalArgumentException` if the path is neither a `.zip` file nor a directory.
+
+```java
+@EventHandler
+public void onResourcePackCache(AsyncResourcePackCacheEvent event) {
+    Path myExtraPack = getDataFolder().toPath().resolve("extra-pack.zip");
+    if (Files.exists(myExtraPack)) {
+        event.registerExternalResourcePack(myExtraPack);
+    }
+}
+```
+
+  </Accordion>
+
+</AccordionGroup>
+
+---
+
+## Custom block events
+
+<AccordionGroup>
+
+  <Accordion title="CustomBlockAttemptPlaceEvent">
+
+**Class:** `net.momirealms.craftengine.bukkit.api.event.CustomBlockAttemptPlaceEvent`
+
+**Cancellable:** Yes
+
+**Thread:** Main
+
+Fired before a custom block placement is committed to the world. Cancelling this event prevents the block from being placed entirely. Use this event to apply pre-placement validation — for example, checking region permissions before any block state is written.
+
+**Key methods**
+
+| Method | Return type | Description |
+|---|---|---|
+| `player()` | `Player` | The player attempting to place the block |
+| `location()` | `Location` | The target placement location (cloned) |
+| `blockState()` | `ImmutableBlockState` | The custom block state about to be placed |
+| `customBlock()` | `CustomBlock` | The `CustomBlock` definition |
+| `clickedBlock()` | `Block` | The block the player clicked to trigger placement |
+| `clickedFace()` | `BlockFace` | The face of the clicked block |
+| `hand()` | `InteractionHand` | The hand used to place the block |
+| `contextBuilder()` | `ContextHolder.Builder` | The mutable context builder for this action |
+
+```java
+@EventHandler
+public void onAttemptPlace(CustomBlockAttemptPlaceEvent event) {
+    if (!hasPermission(event.getPlayer(), event.location())) {
+        event.setCancelled(true);
+        event.getPlayer().sendMessage("You cannot build here.");
+    }
+}
+```
+
+  </Accordion>
+
+  <Accordion title="CustomBlockPlaceEvent">
+
+**Class:** `net.momirealms.craftengine.bukkit.api.event.CustomBlockPlaceEvent`
+
+**Cancellable:** Yes
+
+**Thread:** Main
+
+Fired after a custom block has been placed in the world. Cancelling this event after placement will **not** undo the world change — use `CustomBlockAttemptPlaceEvent` if you want to prevent placement before it happens.
+
+**Key methods**
+
+| Method | Return type | Description |
+|---|---|---|
+| `player()` | `Player` | The player who placed the block |
+| `location()` | `Location` | The placement location (cloned) |
+| `blockState()` | `ImmutableBlockState` | The custom block state that was placed |
+| `customBlock()` | `CustomBlock` | The `CustomBlock` definition |
+| `bukkitBlock()` | `Block` | The Bukkit `Block` at the placement location |
+| `hand()` | `InteractionHand` | The hand used to place the block |
+| `contextBuilder()` | `ContextHolder.Builder` | The mutable context builder for this action |
+
+```java
+@EventHandler
+public void onCustomBlockPlace(CustomBlockPlaceEvent event) {
+    getLogger().info(event.getPlayer().getName()
+        + " placed " + event.customBlock().id()
+        + " at " + event.location());
+}
+```
+
+  </Accordion>
+
+  <Accordion title="CustomBlockBreakEvent">
+
+**Class:** `net.momirealms.craftengine.bukkit.api.event.CustomBlockBreakEvent`
+
+**Cancellable:** Yes
+
+**Thread:** Main
+
+Fired when a player breaks a custom block. You can cancel the event to prevent the break, or call `setDropItems(false)` to suppress loot drops while still allowing the block to be removed.
+
+**Key methods**
+
+| Method | Return type | Description |
+|---|---|---|
+| `player()` | `BukkitServerPlayer` | The CraftEngine server player who broke the block |
+| `getPlayer()` | `Player` | The underlying Bukkit player (inherited from `PlayerEvent`) |
+| `location()` | `Location` | The location of the broken block (cloned) |
+| `blockState()` | `ImmutableBlockState` | The custom block state that was broken |
+| `customBlock()` | `CustomBlock` | The `CustomBlock` definition |
+| `bukkitBlock()` | `Block` | The Bukkit `Block` |
+| `dropItems()` | `boolean` | Whether items will be dropped (default `true`) |
+| `setDropItems(boolean)` | `void` | Set whether items should drop |
+| `contextBuilder()` | `ContextHolder.Builder` | The mutable context builder for this action |
+
+```java
+@EventHandler
+public void onCustomBlockBreak(CustomBlockBreakEvent event) {
+    // Suppress drops when broken in creative mode
+    if (event.getPlayer().getGameMode() == GameMode.CREATIVE) {
+        event.setDropItems(false);
+    }
+}
+```
+
+  </Accordion>
+
+  <Accordion title="CustomBlockInteractEvent">
+
+**Class:** `net.momirealms.craftengine.bukkit.api.event.CustomBlockInteractEvent`
+
+**Cancellable:** Yes
+
+**Thread:** Main
+
+Fired when a player interacts with a custom block (both left-click and right-click). The `action()` getter tells you which interaction type occurred.
+
+**Key methods**
+
+| Method | Return type | Description |
+|---|---|---|
+| `player()` | `Player` | The player who interacted |
+| `location()` | `Location` | The block location (cloned) |
+| `blockState()` | `ImmutableBlockState` | The custom block state |
+| `customBlock()` | `CustomBlock` | The `CustomBlock` definition |
+| `bukkitBlock()` | `Block` | The Bukkit `Block` |
+| `action()` | `CustomBlockInteractEvent.Action` | `LEFT_CLICK` or `RIGHT_CLICK` |
+| `hand()` | `InteractionHand` | The hand used |
+| `clickedFace()` | `BlockFace` | The face that was clicked |
+| `interactionPoint()` | `Location` | The exact click point in world space, may be `null` |
+| `item()` | `ItemStack` | The item held during interaction — marked `@ApiStatus.Experimental`, may change |
+| `contextBuilder()` | `ContextHolder.Builder` | The mutable context builder for this action |
+
+```java
+@EventHandler
+public void onCustomBlockInteract(CustomBlockInteractEvent event) {
+    if (event.action() == CustomBlockInteractEvent.Action.RIGHT_CLICK) {
+        event.setCancelled(true);
+        event.player().sendMessage("Right-clicked: " + event.customBlock().id());
+    }
+}
+```
+
+  </Accordion>
+
+</AccordionGroup>
+
+---
+
+## Furniture events
+
+<AccordionGroup>
+
+  <Accordion title="FurnitureAttemptPlaceEvent">
+
+**Class:** `net.momirealms.craftengine.bukkit.api.event.FurnitureAttemptPlaceEvent`
+
+**Cancellable:** Yes
+
+**Thread:** Main
+
+Fired before furniture is placed in the world. Cancel this event to prevent placement. The event carries the `FurnitureVariant` that would be used, so you can inspect the exact configuration before committing.
+
+**Key methods**
+
+| Method | Return type | Description |
+|---|---|---|
+| `player()` | `Player` | The player attempting to place the furniture |
+| `furniture()` | `CustomFurniture` | The `CustomFurniture` definition |
+| `variant()` | `FurnitureVariant` | The variant that would be placed |
+| `location()` | `Location` | The target placement location (cloned) |
+| `clickedBlock()` | `Block` | The block the player clicked |
+| `hand()` | `InteractionHand` | The hand used |
+| `contextBuilder()` | `ContextHolder.Builder` | The mutable context builder |
+
+```java
+@EventHandler
+public void onFurnitureAttemptPlace(FurnitureAttemptPlaceEvent event) {
+    if (!hasPermission(event.getPlayer(), event.location())) {
+        event.setCancelled(true);
+    }
+}
+```
+
+  </Accordion>
+
+  <Accordion title="FurniturePlaceEvent">
+
+**Class:** `net.momirealms.craftengine.bukkit.api.event.FurniturePlaceEvent`
+
+**Cancellable:** Yes
+
+**Thread:** Main
+
+Fired after furniture has been placed in the world. At this point the `BukkitFurniture` entity already exists and is loaded.
+
+**Key methods**
+
+| Method | Return type | Description |
+|---|---|---|
+| `player()` | `Player` | The player who placed the furniture |
+| `furniture()` | `BukkitFurniture` | The newly placed furniture instance |
+| `location()` | `Location` | The placement location (cloned) |
+| `hand()` | `InteractionHand` | The hand used |
+| `contextBuilder()` | `ContextHolder.Builder` | The mutable context builder |
+
+```java
+@EventHandler
+public void onFurniturePlace(FurniturePlaceEvent event) {
+    getLogger().info(event.getPlayer().getName()
+        + " placed furniture at " + event.location());
+}
+```
+
+  </Accordion>
+
+  <Accordion title="FurnitureBreakEvent">
+
+**Class:** `net.momirealms.craftengine.bukkit.api.event.FurnitureBreakEvent`
+
+**Cancellable:** Yes
+
+**Thread:** Main
+
+Fired when a player destroys a piece of furniture. Cancel the event to prevent destruction. Use `setDropItems(false)` to suppress loot while still allowing the furniture to be removed.
+
+**Key methods**
+
+| Method | Return type | Description |
+|---|---|---|
+| `player()` | `Player` | The player who broke the furniture |
+| `furniture()` | `BukkitFurniture` | The furniture being broken |
+| `location()` | `Location` | The furniture's location |
+| `dropItems()` | `boolean` | Whether items will drop (default `true`) |
+| `setDropItems(boolean)` | `void` | Set whether items should drop |
+| `contextBuilder()` | `ContextHolder.Builder` | The mutable context builder |
+
+```java
+@EventHandler
+public void onFurnitureBreak(FurnitureBreakEvent event) {
+    if (event.getPlayer().getGameMode() == GameMode.CREATIVE) {
+        event.setDropItems(false);
+    }
+}
+```
+
+  </Accordion>
+
+  <Accordion title="FurnitureInteractEvent">
+
+**Class:** `net.momirealms.craftengine.bukkit.api.event.FurnitureInteractEvent`
+
+**Cancellable:** Yes
+
+**Thread:** Main
+
+Fired when a player right-clicks furniture. Use `hitBox()` to determine exactly which part of the furniture was clicked if the furniture has multiple hitbox regions.
+
+**Key methods**
+
+| Method | Return type | Description |
+|---|---|---|
+| `player()` | `Player` | The player interacting |
+| `furniture()` | `BukkitFurniture` | The furniture being interacted with |
+| `location()` | `Location` | The furniture's origin location |
+| `interactionPoint()` | `Location` | The exact click point in world space (cloned) |
+| `hand()` | `InteractionHand` | The hand used |
+| `hitBox()` | `FurnitureHitBox` | The specific hitbox region that was hit |
+| `contextBuilder()` | `ContextHolder.Builder` | The mutable context builder |
+
+```java
+@EventHandler
+public void onFurnitureInteract(FurnitureInteractEvent event) {
+    event.setCancelled(true);
+    event.player().sendMessage("You interacted with: "
+        + event.furniture().id());
+}
+```
+
+  </Accordion>
+
+  <Accordion title="FurnitureHitEvent">
+
+**Class:** `net.momirealms.craftengine.bukkit.api.event.FurnitureHitEvent`
+
+**Cancellable:** Yes
+
+**Thread:** Main
+
+Fired when a player left-clicks (hits) furniture. This is distinct from `FurnitureBreakEvent` — it fires on every hit, not just when the furniture is actually destroyed.
+
+**Key methods**
+
+| Method | Return type | Description |
+|---|---|---|
+| `player()` | `Player` | The player who hit the furniture |
+| `furniture()` | `BukkitFurniture` | The furniture that was hit |
+| `location()` | `Location` | The furniture's origin location |
+| `contextBuilder()` | `ContextHolder.Builder` | The mutable context builder |
+
+```java
+@EventHandler
+public void onFurnitureHit(FurnitureHitEvent event) {
+    // Track damage or trigger custom hit effects
+    handleFurnitureHit(event.furniture(), event.getPlayer());
+}
+```
+
+  </Accordion>
+
+</AccordionGroup>
+
+---
+
+## Registering listeners
+
+Register your listeners as you would any other Bukkit event — no CraftEngine-specific registration is required.
+
+```java
+public class MyPlugin extends JavaPlugin {
+
+    @Override
+    public void onEnable() {
+        getServer().getPluginManager().registerEvents(new MyListeners(), this);
+    }
+}
+
+public class MyListeners implements Listener {
+
+    @EventHandler
+    public void onCraftEngineReload(CraftEngineReloadEvent event) {
+        // Refresh caches here
+    }
+
+    @EventHandler
+    public void onCustomBlockBreak(CustomBlockBreakEvent event) {
+        // Handle custom block break
+    }
+
+    @EventHandler
+    public void onFurnitureBreak(FurnitureBreakEvent event) {
+        // Handle furniture break
+    }
+}
+```

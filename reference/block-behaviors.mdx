@@ -1,0 +1,267 @@
+---
+title: 'Block behavior types reference'
+description: 'Reference for all CraftEngine block behavior types — physics, placement rules, particle effects, liquids, and tick behaviors — with configuration examples.'
+---
+
+Block behaviors define how a custom block interacts with the world: where it can be placed, whether liquids displace it, what particles it emits, and more. You attach behaviors to a block by adding a `behavior` list under the block's definition. A single block can have multiple behaviors applied simultaneously — for example, a torch that requires a supporting surface, can be washed away by liquids, and emits particles.
+
+```yaml
+blocks:
+  default:my_block:
+    behavior:
+      - type: sturdy_base_block
+        direction: down
+        support-types:
+          - center
+      - type: liquid_flowable_block
+```
+
+The sections below describe every behavior type found in the default configuration files.
+
+<AccordionGroup>
+
+  <Accordion title="sturdy_base_block">
+    Requires the block to be placed on a supporting surface. If the supporting surface is removed
+    the block breaks. Use this for blocks like floor torches that must stand on solid ground.
+
+    **Properties**
+
+    | Property | Type | Description |
+    |---|---|---|
+    | `direction` | string | The face the block attaches to. `down` means the block stands on top of the surface below it. |
+    | `support-types` | list of strings | The support shape(s) accepted. Valid values: `center`, `face`. |
+
+    **Example** — amethyst standing torch
+
+    ```yaml
+    behavior:
+      - type: sturdy_base_block
+        direction: down
+        support-types:
+          - center
+    ```
+  </Accordion>
+
+  <Accordion title="directional_attached_block">
+    Attaches the block to a wall face and encodes the facing direction into the block's state. Used
+    by wall-mounted blocks such as wall torches. The block breaks automatically if the wall it is
+    attached to is removed.
+
+    This behavior has no additional configuration properties beyond its type — the facing direction
+    is derived from the block's `states.properties.facing` declaration.
+
+    **Example** — amethyst wall torch
+
+    ```yaml
+    behavior:
+      - type: directional_attached_block
+    ```
+
+    The associated state definition that pairs with this behavior:
+
+    ```yaml
+    states:
+      properties:
+        facing:
+          type: horizontal_direction
+    ```
+  </Accordion>
+
+  <Accordion title="liquid_flowable_block">
+    Allows flowing liquid (water or lava) to destroy and displace the block. Without this behavior,
+    liquid treats the block as a solid and cannot flow through it.
+
+    This behavior has no additional configuration properties.
+
+    **Example**
+
+    ```yaml
+    behavior:
+      - type: liquid_flowable_block
+    ```
+  </Accordion>
+
+  <Accordion title="simple_particle_block">
+    Emits one or more particles from the block on a configurable tick interval. Use this for blocks
+    that produce ambient visual effects such as smoke or coloured dust.
+
+    **Properties**
+
+    | Property | Type | Description |
+    |---|---|---|
+    | `tick-interval` | integer | How many server ticks between each particle emission. |
+    | `particles` | list | One or more particle entries to emit each interval. |
+
+    **Particle entry properties**
+
+    | Property | Type | Description |
+    |---|---|---|
+    | `particle` | string | The particle type (e.g. `smoke`, `dust`). |
+    | `x` | float | X offset within the block (0.0–1.0). |
+    | `y` | float | Y offset within the block (0.0–1.0). |
+    | `z` | float | Z offset within the block (0.0–1.0). |
+    | `color` | string | RGB color for `dust` particles, formatted as `R,G,B`. |
+
+    **Example** — amethyst standing torch with smoke and purple dust
+
+    ```yaml
+    behavior:
+      - type: simple_particle_block
+        tick-interval: 10
+        particles:
+          - particle: smoke
+            x: 0.5
+            y: 0.7
+            z: 0.5
+          - particle: dust
+            color: 138,43,226
+            x: 0.5
+            y: 0.7
+            z: 0.5
+    ```
+  </Accordion>
+
+  <Accordion title="wall_torch_particle_block">
+    A variant of particle emission designed for wall-mounted torches. The particle offsets are
+    interpreted relative to the torch's facing direction, so the flame tip stays correctly
+    positioned regardless of which wall the torch faces.
+
+    **Properties**
+
+    | Property | Type | Description |
+    |---|---|---|
+    | `particles` | list | One or more particle entries. Same format as `simple_particle_block`. |
+
+    **Particle entry properties**
+
+    | Property | Type | Description |
+    |---|---|---|
+    | `particle` | string | The particle type (e.g. `smoke`, `dust`). |
+    | `x` | float | X offset relative to the torch's attachment point. |
+    | `y` | float | Y offset relative to the torch's attachment point. |
+    | `z` | float | Z offset relative to the torch's attachment point. |
+    | `color` | string | RGB color for `dust` particles, formatted as `R,G,B`. |
+
+    **Example** — amethyst wall torch
+
+    ```yaml
+    behavior:
+      - type: wall_torch_particle_block
+        particles:
+          - particle: smoke
+            x: 0.27
+            y: 0.42
+            z: 0.27
+          - particle: dust
+            color: 138,43,226
+            x: 0.27
+            y: 0.42
+            z: 0.27
+    ```
+  </Accordion>
+
+  <Accordion title="lamp_block">
+    Makes the block behave like a toggleable lamp. The block tracks a `lit` boolean state and
+    responds to redstone signals accordingly, switching between an off appearance and an on
+    appearance (with optional `luminance` override for the lit state).
+
+    This behavior has no additional configuration properties. The `lit` state and its appearances
+    are declared in the block's `states` section.
+
+    **Example** — copper coil lamp
+
+    ```yaml
+    behavior:
+      type: lamp_block
+    states:
+      properties:
+        lit:
+          type: boolean
+          default: false
+      appearances:
+        off:
+          auto-state: cactus
+          model:
+            path: minecraft:block/custom/copper_coil
+        on:
+          auto-state: cactus
+          model:
+            path: minecraft:block/custom/copper_coil_on
+      variants:
+        lit=false:
+          appearance: 'off'
+        lit=true:
+          appearance: 'on'
+          settings:
+            luminance: 8
+    ```
+  </Accordion>
+
+  <Accordion title="bouncing_block">
+    Makes the block bounce entities that land on it, similar to a slime block. You can control
+    the bounce height and whether the player's position is synchronised after the bounce.
+
+    **Properties**
+
+    | Property | Type | Description |
+    |---|---|---|
+    | `bounce-height` | float | The vertical velocity applied to bouncing entities. |
+    | `sync-player-position` | boolean | Whether to force-sync the player's position after a bounce. |
+
+    **Example** — sofa with a gentle bounce
+
+    ```yaml
+    behavior:
+      - type: bouncing_block
+        bounce-height: 0.66
+        sync-player-position: false
+    ```
+  </Accordion>
+
+  <Accordion title="seat_block">
+    Allows players to sit on the block by right-clicking it. You define one or more seat positions
+    as `x,y,z` offset triples relative to the block's origin.
+
+    **Properties**
+
+    | Property | Type | Description |
+    |---|---|---|
+    | `seats` | list of strings | Each entry is an `x,y,z` offset where a player can sit. |
+
+    **Example** — single-seat sofa
+
+    ```yaml
+    behavior:
+      - type: seat_block
+        seats:
+          - 0,0,0
+    ```
+  </Accordion>
+
+  <Accordion title="sofa_block">
+    Adds sofa-specific connection logic: adjacent sofa blocks join together and update their shared
+    `shape` state (`straight`, `inner_left`, `inner_right`) automatically when placed or removed.
+
+    This behavior has no additional configuration properties. It works alongside `seat_block` and
+    `bouncing_block` in the sofa example configuration.
+
+    **Example**
+
+    ```yaml
+    behaviors:
+      - type: sofa_block
+      - type: bouncing_block
+        bounce-height: 0.66
+      - type: seat_block
+        seats:
+          - 0,0,0 0
+    ```
+  </Accordion>
+
+</AccordionGroup>
+
+<Note>
+  Multiple behaviors are composed by listing them under a `behaviors` (plural) key rather than
+  a single `behavior` key. Both keys are accepted — use `behaviors` when attaching more than one
+  behavior to a block.
+</Note>

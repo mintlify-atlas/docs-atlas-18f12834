@@ -1,0 +1,174 @@
+---
+title: 'CraftEngineItems: query and check custom items'
+description: 'API reference for CraftEngineItems — methods to retrieve loaded items, look up items by ID or ItemStack, and check if an ItemStack is a custom item.'
+---
+
+`CraftEngineItems` is a final utility class in `net.momirealms.craftengine.bukkit.api` that lets you query the set of loaded custom items and inspect any `ItemStack` to determine whether it originated from CraftEngine. Every method is `static` — you never instantiate this class.
+
+```java
+import net.momirealms.craftengine.bukkit.api.CraftEngineItems;
+import net.momirealms.craftengine.core.item.CustomItem;
+import net.momirealms.craftengine.core.util.Key;
+```
+
+## loadedItems()
+
+```java
+@NotNull
+public static Map<Key, CustomItem<ItemStack>> loadedItems()
+```
+
+Returns an unmodifiable map of all currently loaded custom items. The map keys are unique `Key` identifiers and the values are the corresponding `CustomItem<ItemStack>` instances.
+
+<Warning>
+  Do not call this method during `onEnable()`. The map will be empty until CraftEngine finishes its content load. Listen for `CraftEngineReloadEvent` and access this method from within that handler.
+</Warning>
+
+**Returns** a non-null, unmodifiable map of all loaded custom items.
+
+**Throws** `IllegalStateException` if the `BukkitItemManager` instance is not yet available.
+
+```java
+@EventHandler
+public void onReload(CraftEngineReloadEvent event) {
+    Map<Key, CustomItem<ItemStack>> items = CraftEngineItems.loadedItems();
+    getLogger().info("Loaded " + items.size() + " custom item(s).");
+}
+```
+
+---
+
+## byId(Key id)
+
+```java
+@Nullable
+public static CustomItem<ItemStack> byId(@NotNull Key id)
+```
+
+Gets a custom item by its unique identifier.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `Key` | The unique namespaced key of the custom item |
+
+**Returns** the `CustomItem<ItemStack>` for the given ID, or `null` if no item with that ID is loaded.
+
+```java
+Key id = Key.of("mypack", "ruby_sword");
+CustomItem<ItemStack> customItem = CraftEngineItems.byId(id);
+if (customItem != null) {
+    ItemStack stack = customItem.buildItemStack(1);
+    player.getInventory().addItem(stack);
+}
+```
+
+---
+
+## byItemStack(ItemStack itemStack)
+
+```java
+@Nullable
+public static CustomItem<ItemStack> byItemStack(@NotNull ItemStack itemStack)
+```
+
+Gets the custom item definition associated with an existing `ItemStack`. Returns `null` if the stack is empty or does not carry a CraftEngine custom item ID.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `itemStack` | `ItemStack` | The item stack to inspect |
+
+**Returns** the matching `CustomItem<ItemStack>`, or `null` if the stack is not a custom item.
+
+```java
+ItemStack held = player.getInventory().getItemInMainHand();
+CustomItem<ItemStack> customItem = CraftEngineItems.byItemStack(held);
+if (customItem != null) {
+    player.sendMessage("You are holding: " + customItem.id());
+}
+```
+
+---
+
+## isCustomItem(ItemStack itemStack)
+
+```java
+public static boolean isCustomItem(@NotNull ItemStack itemStack)
+```
+
+Checks whether an `ItemStack` is a CraftEngine custom item.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `itemStack` | `ItemStack` | The item stack to test |
+
+**Returns** `true` if the stack is non-empty and carries a CraftEngine custom item ID.
+
+```java
+ItemStack stack = player.getInventory().getItemInMainHand();
+if (CraftEngineItems.isCustomItem(stack)) {
+    player.sendMessage("That is a custom item!");
+}
+```
+
+---
+
+## getCustomItemId(ItemStack itemStack)
+
+```java
+@Nullable
+public static Key getCustomItemId(@NotNull ItemStack itemStack)
+```
+
+Gets the custom item ID stored in an `ItemStack`.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `itemStack` | `ItemStack` | The item stack to inspect |
+
+**Returns** the `Key` ID of the custom item, or `null` if the stack is empty or not a custom item.
+
+```java
+Key id = CraftEngineItems.getCustomItemId(stack);
+if (id != null) {
+    player.sendMessage("Item namespace: " + id.namespace()
+        + ", key: " + id.value());
+}
+```
+
+---
+
+## Practical example: checking items in an event handler
+
+The following example shows how to detect a CraftEngine custom item in a `PlayerInteractEvent` and take action based on its ID.
+
+```java
+@EventHandler
+public void onPlayerInteract(PlayerInteractEvent event) {
+    if (event.getAction() != Action.RIGHT_CLICK_AIR
+            && event.getAction() != Action.RIGHT_CLICK_BLOCK) {
+        return;
+    }
+
+    ItemStack item = event.getItem();
+    if (item == null) return;
+
+    Key id = CraftEngineItems.getCustomItemId(item);
+    if (id == null) return;
+
+    // React only to a specific custom item
+    if (id.equals(Key.of("mypack", "magic_wand"))) {
+        event.setCancelled(true);
+        event.getPlayer().sendMessage("You waved the magic wand!");
+    }
+}
+```
+
+You can also call `CraftEngineItems.byItemStack(item)` if you need access to the full `CustomItem` definition (display name, lore, behaviours, etc.) rather than just the ID.

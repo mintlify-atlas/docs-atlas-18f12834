@@ -1,0 +1,135 @@
+---
+title: "Install CraftEngine on Paper and Folia servers"
+description: "Step-by-step guide to downloading, installing, and performing the initial setup of CraftEngine on Paper or Folia Minecraft servers."
+---
+
+CraftEngine is a Paper plugin that adds custom blocks, items, furniture, and resource pack management to your Minecraft server. This page walks you through downloading the JAR, dropping it into your server, and understanding the file structure it creates on first startup.
+
+## Requirements
+
+Before installing, confirm your environment meets these requirements:
+
+| Requirement | Minimum |
+|-------------|---------|
+| Server software | Paper 1.20.1+ or any Folia build |
+| Java | 21 |
+| Minecraft client | 1.16+ (resource pack delivery) |
+
+<Note>
+CraftEngine declares `foliaSupported: true` in its plugin manifest. You can run it on Folia without a separate build.
+</Note>
+
+<Warning>
+CraftEngine requires Java 21. The plugin will not load on Java 17 or earlier because the compiled bytecode targets `JavaVersion.VERSION_21`.
+</Warning>
+
+## Community vs. Premium edition
+
+CraftEngine is available in two editions. Both editions share the same JAR distribution model — you drop a single file into your `plugins/` folder either way.
+
+| Feature | Community | Premium |
+|---------|-----------|---------|
+| Core custom blocks, items, furniture | Yes | Yes |
+| Official support | No | Yes |
+| Exclusive features (client-bound model, resource pack protection, entity culling, dev builds) | No | Yes |
+
+You can obtain the Premium edition from either of these storefronts:
+
+- **Polymart** — [polymart.org/product/7624/craftengine](https://polymart.org/product/7624/craftengine)
+- **BuiltByBit** — [builtbybit.com/resources/craftengine.82674](https://builtbybit.com/resources/craftengine.82674)
+
+The Community edition source is available on GitHub and can be built from source (see below).
+
+## Installation
+
+<Steps>
+  <Step title="Download the JAR">
+    Download the latest CraftEngine JAR from your chosen storefront (Polymart or BuiltByBit for Premium, or build from source for Community).
+
+    **Building from source (Community edition):**
+
+    ```bash
+    git clone https://github.com/Xiao-MoMi/craft-engine.git
+    cd craft-engine
+    ./gradlew build
+    ```
+
+    The compiled JAR is placed in the `target/` directory and is named `CraftEngine-paper-plugin-<version>.jar`.
+  </Step>
+
+  <Step title="Place the JAR in your plugins folder">
+    Copy the JAR into your server's `plugins/` directory:
+
+    ```bash
+    cp CraftEngine-paper-plugin-*.jar /path/to/server/plugins/
+    ```
+
+    CraftEngine ships as a Paper plugin (not a legacy Bukkit plugin), so it must be in the standard `plugins/` folder. No additional loader installation is required on Paper 1.20.1+.
+  </Step>
+
+  <Step title="Start the server">
+    Start (or restart) your Paper/Folia server. CraftEngine loads at `STARTUP` order, before world generation begins.
+
+    You should see output similar to this in your server console:
+
+    ```
+    [CraftEngine] Loading CraftEngine vX.X.XX
+    [CraftEngine] Generating default resources...
+    [CraftEngine] Resource pack generated successfully.
+    ```
+
+    <Note>
+    On first startup, CraftEngine generates a default resource pack and writes all its configuration files. This may take a few extra seconds.
+    </Note>
+  </Step>
+
+  <Step title="Review the generated directory structure">
+    After the first startup, CraftEngine creates the following layout inside your server's `plugins/CraftEngine/` folder:
+
+    ```
+    plugins/CraftEngine/
+    ├── config.yml          # Main plugin configuration
+    ├── commands.yml        # Enable/disable individual commands
+    ├── generated/
+    │   └── resource_pack.zip   # Auto-generated resource pack
+    └── resources/
+        └── default/        # Built-in content pack
+            ├── pack.yml    # Pack metadata
+            ├── configuration/
+            │   ├── blocks/
+            │   ├── items/
+            │   ├── furniture/
+            │   ├── templates/
+            │   ├── categories.yml
+            │   ├── emoji.yml
+            │   └── lang.yml
+            └── resourcepack/   # Raw resource pack assets
+    ```
+
+    The `resources/` directory is where all custom content lives. Each subdirectory inside `resources/` is a separate content pack identified by its `pack.yml`.
+  </Step>
+
+  <Step title="Understand the resources/ folder and pack.yml">
+    Every content pack inside `resources/` must contain a `pack.yml` at its root. This file declares the pack's identity. The `default` pack that ships with CraftEngine uses:
+
+    ```yaml
+    author: XiaoMoMi
+    version: 0.0.1
+    description: Default Assets for CraftEngine
+    namespace: default
+    ```
+
+    | Field | Purpose |
+    |-------|---------|
+    | `author` | Display name of the pack author |
+    | `version` | Pack version string |
+    | `description` | Human-readable description |
+    | `namespace` | Prefix used for all item and block IDs in this pack (e.g. `default:amethyst_torch`) |
+
+    To add your own content pack, create a new folder under `resources/` with its own `pack.yml` and a `configuration/` subdirectory.
+  </Step>
+</Steps>
+
+## Next steps
+
+Once the server starts cleanly with CraftEngine loaded, set up resource pack delivery so players receive the generated pack when they join. The [quickstart guide](/quickstart) walks through creating your first custom block and configuring a self-hosted resource pack server.

@@ -1,0 +1,124 @@
+---
+title: "Item system configuration options"
+description: "Configure CraftEngine's item system: client-bound models, custom model data assignment, drop display, update triggers, and equipment settings."
+---
+
+CraftEngine's item system controls how custom items are rendered on the client, how model data values are assigned automatically, and how items are corrected on existing player inventories. All options live under the `item:` key in `config.yml`, with equipment-related settings under `equipment:`.
+
+## Client-side model binding
+
+<Warning>
+  `client-bound-model` is a **Premium exclusive** feature. It has no effect on the free edition of CraftEngine.
+</Warning>
+
+<ParamField path="item.client-bound-model" type="boolean" default="true">
+  Makes `custom-model-data` and `item-model` client-side only by default. The server-side item stack does not carry this data, which means:
+
+  - Model values can be updated dynamically without creating inconsistencies for items players already hold.
+  - Plugins that identify items by reading `custom-model-data` from the server-side stack will not see the value.
+
+  You can override this global default per item using the `client-bound-model` field on individual item definitions.
+</ParamField>
+
+<ParamField path="item.always-use-item-model" type="boolean" default="true">
+  When enabled, CraftEngine adds both `custom-model-data` and an `item-model` component to each item, optimising client rendering for packs that still support 1.21.1 or older clients. Recommended to leave enabled.
+</ParamField>
+
+<ParamField path="item.always-use-custom-model-data" type="boolean" default="false">
+  Apply `custom-model-data` to items even when the resource pack targets only 1.21.2 and above (where `item-model` is the preferred mechanism). Enable this if other tools on your server rely on custom model data values.
+</ParamField>
+
+<ParamField path="item.always-generate-model-overrides" type="boolean" default="false">
+  Generate legacy model override entries even when the resource pack only targets 1.21.2 and above. Useful for Bedrock resource pack converters that parse override-based model files.
+</ParamField>
+
+## Display defaults
+
+<ParamField path="item.non-italic-tag" type="boolean" default="false">
+  Prefix every item's lore lines with `<!i>` to strip the default italic formatting Minecraft applies to lore text.
+</ParamField>
+
+<ParamField path="item.default-material" type="string" default="nether_brick">
+  The base Minecraft material used for custom items when no `material` is specified in the item definition.
+</ParamField>
+
+## Update triggers
+
+<Warning>
+  Update triggers are performance-intensive. Enable them only when you need to correct faults on items that already exist in player inventories. They are not intended for updating display data such as names or lore — use `client-bound-data` for those changes instead.
+</Warning>
+
+<ParamField path="item.update-triggers.click-in-inventory" type="boolean" default="false">
+  Run the item updater when a player clicks an item in their inventory. Does not fire for players in creative mode.
+</ParamField>
+
+<ParamField path="item.update-triggers.drop" type="boolean" default="false">
+  Run the item updater when a player drops an item from their inventory.
+</ParamField>
+
+<ParamField path="item.update-triggers.pick-up" type="boolean" default="false">
+  Run the item updater when a player picks up an item from the ground.
+</ParamField>
+
+## Custom model data assignment
+
+CraftEngine can assign `custom-model-data` values automatically. These options control the starting point for that auto-assignment.
+
+<ParamField path="item.custom-model-data-starting-value.default" type="number" default="10000">
+  The starting value used when assigning custom model data for items that do not match any namespace override.
+</ParamField>
+
+<ParamField path="item.custom-model-data-starting-value.overrides" type="object">
+  Namespace-specific starting values. The key is a namespace string and the value is the starting integer.
+
+  ```yaml
+  custom-model-data-starting-value:
+    default: 10000
+    overrides:
+      paper: 20000
+  ```
+</ParamField>
+
+## Drop display
+
+<ParamField path="item.default-drop-display.enable" type="boolean" default="false">
+  Show the item name above dropped items by default. Individual items can override this setting.
+</ParamField>
+
+<ParamField path="item.default-drop-display.format" type="string" default="&lt;arg:count&gt;x &lt;name&gt;">
+  MiniMessage format string for the drop label. `<arg:count>` is replaced with the stack size and `<name>` is replaced with the item's display name.
+</ParamField>
+
+## Data fixer upper
+
+<ParamField path="item.data-fixer-upper.enable" type="boolean" default="true">
+  Enable the data fixer, which migrates item NBT/component data from older CraftEngine versions when items are loaded.
+</ParamField>
+
+<ParamField path="item.data-fixer-upper.fallback-version" type="number" default="3463">
+  The Minecraft [data version](https://minecraft.wiki/w/Data_version#Java_Edition) used as a fallback when an item has no recorded data version. Defaults to the version corresponding to 1.20.1.
+</ParamField>
+
+## Equipment
+
+Equipment settings control how CraftEngine repurposes a vanilla armor type's texture slot to support custom armor trims.
+
+<ParamField path="equipment.sacrificed-vanilla-armor.type" type="string" default="chainmail">
+  The vanilla armor material that is fully replaced when you create custom armor using trim types. All trim slots for this material are freed up for CraftEngine's use.
+</ParamField>
+
+<ParamField path="equipment.sacrificed-vanilla-armor.asset-id" type="string" default="minecraft:chainmail">
+  Resource location of the armor asset used to reconstruct the original appearance of the sacrificed armor via trim configurations, so players wearing the vanilla variant still see the correct texture.
+</ParamField>
+
+<ParamField path="equipment.sacrificed-vanilla-armor.humanoid" type="string" default="minecraft:trims/entity/humanoid/chainmail">
+  Trim texture path used to restore the humanoid (helmet, chestplate, boots) layer of the sacrificed armor.
+</ParamField>
+
+<ParamField path="equipment.sacrificed-vanilla-armor.humanoid-leggings" type="string" default="minecraft:trims/entity/humanoid_leggings/chainmail">
+  Trim texture path used to restore the humanoid leggings layer of the sacrificed armor.
+</ParamField>
+
+<Note>
+  CraftEngine uses trim configurations to reconstruct the default look of the sacrificed armor type. Players who are still wearing chainmail (or whichever type you sacrifice) will see the correct appearance because the trim system re-applies the original texture.
+</Note>

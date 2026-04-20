@@ -1,0 +1,145 @@
+---
+title: "Block system and chunk storage configuration"
+description: "Configure custom block count, sound system, adventure mode compatibility, chunk serialization compression, and block restoration behavior."
+---
+
+CraftEngine replaces real vanilla block states with custom blocks server-side and uses a chunk-level storage system to persist their data. The options below — found under `block:` and `chunk-system:` in `config.yml` — let you tune capacity, performance, and compatibility to match your server's needs.
+
+## Block system
+
+### Capacity
+
+<ParamField path="block.serverside-blocks" type="number" default="2000">
+  The total number of real server-side block states CraftEngine reserves for custom blocks. Increase this value when you need more distinct custom block types. Increase in increments of 1000. **Requires a full server restart to apply.**
+</ParamField>
+
+### Sound system
+
+<ParamField path="block.sound-system.enable" type="boolean" default="true">
+  Enable CraftEngine's block sound system, which suppresses the vanilla sounds that clients would otherwise play for the underlying block state, replacing them with the correct custom block sounds.
+</ParamField>
+
+<ParamField path="block.sound-system.process-cancelled-events.step" type="boolean" default="true">
+  When another plugin cancels a step (footstep) event, still process it to restore the appropriate sound.
+</ParamField>
+
+<ParamField path="block.sound-system.process-cancelled-events.break" type="boolean" default="true">
+  When another plugin cancels a block-break event, still process it to restore the appropriate sound.
+</ParamField>
+
+### Adventure mode compatibility
+
+<ParamField path="block.simplify-adventure-break-check" type="boolean" default="false">
+  When enabled, any tool capable of breaking the underlying vanilla block state (e.g., note block) can also break custom blocks built on top of it. This removes the need to list server-side custom block IDs in an item's `can_break` predicate.
+
+  When disabled, you must specify CraftEngine's internal block IDs in `can_break`. **Do not send these IDs to vanilla clients — it will cause crashes.** Use `client-bound-data` for safe client synchronisation.
+</ParamField>
+
+<ParamField path="block.simplify-adventure-place-check" type="boolean" default="false">
+  Same concept as `simplify-adventure-break-check` but applied to block placement. When enabled, placement rules are derived from the underlying vanilla block rather than requiring explicit custom block IDs in `can_place_on`.
+</ParamField>
+
+### Bukkit material spoofing
+
+<ParamField path="block.deceive-bukkit-material.default" type="string" default="bricks">
+  The vanilla `Material` value returned by `Block.getMaterial()` for custom blocks. Change this if another plugin behaves incorrectly because it reads the material of CraftEngine blocks. **Requires a restart to apply.**
+</ParamField>
+
+<ParamField path="block.deceive-bukkit-material.overrides" type="object">
+  Per-block-ID material overrides. Keys are internal real IDs (or ranges such as `1~8`) and values are vanilla material names. Find real IDs with `/ce debug real-state-usage`.
+
+  ```yaml
+  deceive-bukkit-material:
+    default: bricks
+    overrides:
+      0: bricks
+      1~8: bricks
+  ```
+</ParamField>
+
+## Chunk system
+
+CraftEngine stores custom block data inside chunk sections using a palette-based approach. The chunk system options control caching, compression, injection strategy, and what happens when chunks load or unload.
+
+### Cache and compression
+
+<ParamField path="chunk-system.cache-system" type="boolean" default="true">
+  Cache serialised chunk data in memory. Chunks that frequently load and unload incur less CPU overhead on serialisation. Increases memory consumption.
+</ParamField>
+
+<ParamField path="chunk-system.compression-method" type="number" default="4">
+  Compression algorithm used when writing custom block data to disk. Choose based on your server's CPU and I/O profile:
+
+  | Value | Algorithm | Compression speed | Decompress speed | Ratio | Memory |
+  |-------|-----------|-------------------|------------------|-------|--------|
+  | `1`   | NONE      | —                 | —                | None  | Low    |
+  | `2`   | DEFLATE   | Medium–Slow       | Medium           | Moderate | Low |
+  | `3`   | GZIP      | Medium–Slow       | Medium           | Moderate | Low |
+  | `4`   | LZ4       | Blazing-Fast      | Blazing-Fast     | Low   | Low    |
+  | `5`   | ZSTD      | Medium–Fast       | Fast             | High  | Medium |
+
+  LZ4 (default) is the best choice for most servers. Use ZSTD if you have spare CPU and want smaller files.
+</ParamField>
+
+### Injection
+
+<ParamField path="chunk-system.injection.target" type="string" default="palette">
+  Where CraftEngine injects its block palette hook. **Requires a restart to apply.**
+
+  - `palette` — Injects into the `PalettedContainer`. Default for most setups.
+  - `section` — Injects into the `LevelChunkSection`. Use this if you have both FastAsyncWorldEdit and Axiom installed simultaneously.
+</ParamField>
+
+<ParamField path="chunk-system.injection.use-fast-method" type="boolean" default="true">
+  Use a faster injection strategy. This may not work with server forks that significantly alter chunk class structure, but is safe for most Paper and Folia builds.
+</ParamField>
+
+### Block restoration
+
+<Warning>
+  Disabling `restore-vanilla-blocks-on-chunk-unload` is irreversible if CraftEngine is later removed from the server. Custom blocks will permanently become air. Only do this for temporary or test worlds.
+</Warning>
+
+<ParamField path="chunk-system.restore-vanilla-blocks-on-chunk-unload" type="boolean" default="true">
+  Convert custom blocks back to their underlying vanilla block states before the chunk is written to disk. This ensures world portability — the world can be opened in a vanilla environment or after removing the plugin without data loss.
+</ParamField>
+
+<ParamField path="chunk-system.restore-custom-blocks-on-chunk-load" type="boolean" default="true">
+  Convert vanilla block states back to custom blocks when a chunk is loaded. Disable only if you also disabled `restore-vanilla-blocks-on-chunk-unload` and accept the data-loss risk in exchange for a performance gain.
+</ParamField>
+
+<ParamField path="chunk-system.sync-custom-blocks-on-chunk-load" type="boolean" default="false">
+  When a chunk is loaded, synchronise its custom block data with CraftEngine's internal state. Enable this if you edit maps locally using the CraftEngine Fabric mod, where changes are not immediately reflected on the server.
+</ParamField>
+
+### Invalid block and furniture handling
+
+These systems scan chunks on load and fix or remove entries that reference block or furniture types no longer registered with CraftEngine.
+
+<ParamField path="chunk-system.process-invalid-blocks.enable" type="boolean" default="false">
+  Enable processing of invalid custom block entries when chunks load.
+</ParamField>
+
+<ParamField path="chunk-system.process-invalid-blocks.remove" type="string[]">
+  List of block IDs that should be removed (replaced with air) if found in a loading chunk.
+</ParamField>
+
+<ParamField path="chunk-system.process-invalid-blocks.convert" type="object">
+  Map of old block ID to new block ID. Invalid blocks matching a key are converted to the corresponding value on chunk load.
+</ParamField>
+
+<ParamField path="chunk-system.process-invalid-furniture.enable" type="boolean" default="false">
+  Enable processing of invalid custom furniture entries when chunks load.
+</ParamField>
+
+<ParamField path="chunk-system.process-invalid-furniture.remove" type="string[]">
+  List of furniture IDs that should be removed if found in a loading chunk.
+</ParamField>
+
+<ParamField path="chunk-system.process-invalid-furniture.convert" type="object">
+  Map of old furniture ID to new furniture ID for on-load migration.
+</ParamField>
+
+<Tip>
+  The invalid block and furniture processors are useful when you remove or rename a content pack and want to clean up orphaned data automatically rather than running a manual scan command.
+</Tip>

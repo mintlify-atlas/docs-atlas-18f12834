@@ -1,0 +1,589 @@
+---
+title: 'CraftEngineFurniture: place and manage furniture'
+description: 'API reference for CraftEngineFurniture — methods to place, remove, query, and ray-trace furniture entities using the CraftEngine Java API.'
+---
+
+`CraftEngineFurniture` is a final utility class in `net.momirealms.craftengine.bukkit.api` that lets you spawn, remove, look up, and ray-trace furniture entities. Every method is `static`. All world-mutating calls must be made from the thread that owns the relevant region (Folia compatibility).
+
+```java
+import net.momirealms.craftengine.bukkit.api.CraftEngineFurniture;
+import net.momirealms.craftengine.bukkit.entity.furniture.BukkitFurniture;
+import net.momirealms.craftengine.core.entity.furniture.CustomFurniture;
+import net.momirealms.craftengine.core.entity.furniture.Furniture;
+import net.momirealms.craftengine.core.util.Key;
+```
+
+## loadedFurniture()
+
+```java
+@NotNull
+public static Map<Key, CustomFurniture> loadedFurniture()
+```
+
+Returns an unmodifiable map of all currently loaded custom furniture definitions. The map keys are unique `Key` identifiers and the values are the corresponding `CustomFurniture` instances.
+
+<Warning>
+  Do not call this method during `onEnable()`. The map will be empty until CraftEngine finishes loading its content. Listen for `CraftEngineReloadEvent` and access this method from within that handler.
+</Warning>
+
+**Returns** a non-null, unmodifiable map of all loaded custom furniture.
+
+```java
+@EventHandler
+public void onReload(CraftEngineReloadEvent event) {
+    Map<Key, CustomFurniture> furniture = CraftEngineFurniture.loadedFurniture();
+    getLogger().info("Loaded " + furniture.size() + " furniture type(s).");
+}
+```
+
+---
+
+## byId(Key id)
+
+```java
+public static CustomFurniture byId(@NotNull Key id)
+```
+
+Gets a custom furniture definition by its unique identifier.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `Key` | The unique namespaced key of the custom furniture |
+
+**Returns** the `CustomFurniture` for the given ID, or `null` if no furniture with that ID is loaded.
+
+```java
+CustomFurniture def = CraftEngineFurniture.byId(Key.of("mypack", "oak_chair"));
+if (def != null) {
+    // use the definition
+}
+```
+
+---
+
+## rayTrace(Player, double)
+
+```java
+@Nullable
+public static BukkitFurniture rayTrace(Player player, double maxDistance)
+```
+
+Performs a ray trace from the player's eye position to find the furniture entity they are looking at, up to the given maximum distance.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `player` | `Player` | The player performing the ray trace |
+| `maxDistance` | `double` | Maximum distance in blocks to trace |
+
+**Returns** the `BukkitFurniture` the player is targeting, or `null` if none is found within range.
+
+```java
+BukkitFurniture targeted = CraftEngineFurniture.rayTrace(player, 8.0);
+if (targeted != null) {
+    player.sendMessage("Looking at furniture: " + targeted.id());
+}
+```
+
+---
+
+## rayTrace(Player)
+
+```java
+@Nullable
+public static BukkitFurniture rayTrace(Player player)
+```
+
+Performs a ray trace from the player's eye position using the player's cached interaction range as the maximum distance.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `player` | `Player` | The player performing the ray trace |
+
+**Returns** the `BukkitFurniture` the player is targeting, or `null` if none is found.
+
+```java
+BukkitFurniture targeted = CraftEngineFurniture.rayTrace(player);
+```
+
+---
+
+## place(Location, Key)
+
+```java
+@Nullable
+public static BukkitFurniture place(Location location, Key furnitureId)
+```
+
+Places furniture at a location using the furniture definition's first available variant. No sound is played.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `location` | `Location` | The location to spawn the furniture |
+| `furnitureId` | `Key` | The unique ID of the furniture definition |
+
+**Returns** the spawned `BukkitFurniture`, or `null` if no furniture with that ID exists.
+
+```java
+BukkitFurniture chair = CraftEngineFurniture.place(
+    location,
+    Key.of("mypack", "oak_chair")
+);
+```
+
+---
+
+## place(Location, Key, String)
+
+```java
+@Nullable
+public static BukkitFurniture place(Location location, Key furnitureId, String variant)
+```
+
+Places furniture at a location using a specific variant name. No sound is played.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `location` | `Location` | The location to spawn the furniture |
+| `furnitureId` | `Key` | The unique ID of the furniture definition |
+| `variant` | `String` | The variant name to use |
+
+**Returns** the spawned `BukkitFurniture`, or `null` if no furniture with that ID exists.
+
+```java
+BukkitFurniture chair = CraftEngineFurniture.place(
+    location,
+    Key.of("mypack", "sofa"),
+    "left_arm"
+);
+```
+
+---
+
+## place(Location, Key, String, boolean)
+
+```java
+@Nullable
+public static BukkitFurniture place(
+    Location location,
+    Key furnitureId,
+    String variant,
+    boolean playSound
+)
+```
+
+Places furniture at a location using a specific variant, with optional placement sound.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `location` | `Location` | The location to spawn the furniture |
+| `furnitureId` | `Key` | The unique ID of the furniture definition |
+| `variant` | `String` | The variant name to use |
+| `playSound` | `boolean` | Whether to play the furniture's place sound |
+
+**Returns** the spawned `BukkitFurniture`, or `null` if no furniture with that ID exists.
+
+```java
+BukkitFurniture spawned = CraftEngineFurniture.place(
+    location,
+    Key.of("mypack", "lantern"),
+    "default",
+    true
+);
+```
+
+---
+
+## place(Location, CustomFurniture, String, boolean)
+
+```java
+@NotNull
+public static BukkitFurniture place(
+    Location location,
+    CustomFurniture furniture,
+    String variant,
+    boolean playSound
+)
+```
+
+Places furniture using a `CustomFurniture` definition object directly, with variant and sound control. Use this overload when you already hold a reference to the definition.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `location` | `Location` | The location to spawn the furniture |
+| `furniture` | `CustomFurniture` | The furniture definition |
+| `variant` | `String` | The variant name to use |
+| `playSound` | `boolean` | Whether to play the furniture's place sound |
+
+**Returns** a non-null `BukkitFurniture` representing the spawned entity.
+
+```java
+CustomFurniture def = CraftEngineFurniture.byId(Key.of("mypack", "bookshelf"));
+if (def != null) {
+    BukkitFurniture spawned = CraftEngineFurniture.place(
+        location, def, def.anyVariantName(), true
+    );
+}
+```
+
+---
+
+## place(Location, CustomFurniture, CompoundTag, boolean)
+
+```java
+@NotNull
+public static BukkitFurniture place(
+    Location location,
+    CustomFurniture furniture,
+    CompoundTag data,
+    boolean playSound
+)
+```
+
+Places furniture using a full NBT `CompoundTag` as the data accessor, giving you low-level control over every piece of furniture data including variant, rotation, and custom properties.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `location` | `Location` | The location to spawn the furniture |
+| `furniture` | `CustomFurniture` | The furniture definition |
+| `data` | `CompoundTag` | An NBT compound tag containing the furniture data |
+| `playSound` | `boolean` | Whether to play the furniture's place sound |
+
+**Returns** a non-null `BukkitFurniture` representing the spawned entity.
+
+```java
+CompoundTag data = new CompoundTag();
+data.putString("variant", "north");
+data.putFloat("yaw", 90f);
+
+CustomFurniture def = CraftEngineFurniture.byId(Key.of("mypack", "sign_post"));
+if (def != null) {
+    BukkitFurniture spawned = CraftEngineFurniture.place(location, def, data, true);
+}
+```
+
+---
+
+## Deprecated place overloads
+
+<Warning>
+  The following `place` overloads that accept `AnchorType` are **deprecated since 0.0.66 and will be removed** in a future version. Replace them with the equivalent `String variant` overloads.
+
+  - `place(Location, Key, AnchorType)` → use `place(Location, Key, String)`
+  - `place(Location, Key, AnchorType, boolean)` → use `place(Location, Key, String, boolean)`
+  - `place(Location, CustomFurniture, AnchorType)` → use `place(Location, CustomFurniture, String, boolean)`
+  - `place(Location, CustomFurniture, AnchorType, boolean)` → use `place(Location, CustomFurniture, String, boolean)`
+</Warning>
+
+---
+
+## isFurniture(Entity)
+
+```java
+public static boolean isFurniture(@NotNull Entity entity)
+```
+
+Checks whether an entity is a furniture meta entity by inspecting its persistent data container.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `entity` | `Entity` | The Bukkit entity to test |
+
+**Returns** `true` if the entity has CraftEngine furniture metadata.
+
+```java
+if (CraftEngineFurniture.isFurniture(entity)) {
+    // entity is a furniture base/meta entity
+}
+```
+
+---
+
+## isCollisionEntity(Entity)
+
+```java
+public static boolean isCollisionEntity(@NotNull Entity entity)
+```
+
+Checks whether an entity is a CraftEngine collision entity (used for hitbox detection during ray tracing).
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `entity` | `Entity` | The Bukkit entity to test |
+
+**Returns** `true` if the entity is a `CollisionEntity`.
+
+```java
+if (CraftEngineFurniture.isCollisionEntity(entity)) {
+    // entity represents a furniture collision volume
+}
+```
+
+---
+
+## isSeat(Entity)
+
+```java
+public static boolean isSeat(@NotNull Entity entity)
+```
+
+Checks whether an entity is a CraftEngine seat entity.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `entity` | `Entity` | The Bukkit entity to test |
+
+**Returns** `true` if the entity has the CraftEngine seat key in its persistent data container.
+
+```java
+if (CraftEngineFurniture.isSeat(entity)) {
+    // entity is a seat — you can look up the parent furniture
+    BukkitFurniture furniture = CraftEngineFurniture.getLoadedFurnitureBySeat(entity);
+}
+```
+
+---
+
+## getLoadedFurnitureByMetaEntity(Entity)
+
+```java
+@Nullable
+public static BukkitFurniture getLoadedFurnitureByMetaEntity(@NotNull Entity baseEntity)
+```
+
+Gets the currently loaded `BukkitFurniture` associated with a given meta (base) entity.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `baseEntity` | `Entity` | The furniture's meta entity |
+
+**Returns** the `BukkitFurniture`, or `null` if no loaded furniture is associated with this entity.
+
+```java
+BukkitFurniture furniture = CraftEngineFurniture.getLoadedFurnitureByMetaEntity(entity);
+if (furniture != null) {
+    furniture.destroy();
+}
+```
+
+---
+
+## getLoadedFurnitureBySeat(Entity)
+
+```java
+@Nullable
+public static BukkitFurniture getLoadedFurnitureBySeat(@NotNull Entity seat)
+```
+
+Gets the loaded furniture that owns a given seat entity.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `seat` | `Entity` | The seat entity |
+
+**Returns** the parent `BukkitFurniture`, or `null` if the entity is not a seat or no furniture is found.
+
+```java
+BukkitFurniture furniture = CraftEngineFurniture.getLoadedFurnitureBySeat(entity);
+```
+
+---
+
+## getLoadedFurnitureByCollider(Entity)
+
+```java
+@Nullable
+public static BukkitFurniture getLoadedFurnitureByCollider(@NotNull Entity collider)
+```
+
+Gets the loaded furniture associated with a given collision entity.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `collider` | `Entity` | The collider entity |
+
+**Returns** the parent `BukkitFurniture`, or `null` if the entity is not a collider or no furniture is found.
+
+```java
+BukkitFurniture furniture = CraftEngineFurniture.getLoadedFurnitureByCollider(entity);
+```
+
+---
+
+## Deprecated lookup overload
+
+<Warning>
+  `getLoadedFurnitureByBaseEntity(Entity)` is **deprecated since 0.0.66**. Use `getLoadedFurnitureByMetaEntity(Entity)` instead — it is identical in behaviour.
+</Warning>
+
+---
+
+## remove(Entity)
+
+```java
+public static boolean remove(@NotNull Entity entity)
+```
+
+Removes furniture by its meta entity. Does not drop loot or play sounds.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `entity` | `Entity` | The furniture's meta entity |
+
+**Returns** `true` if the furniture was found and destroyed, `false` otherwise.
+
+```java
+boolean removed = CraftEngineFurniture.remove(entity);
+```
+
+---
+
+## remove(Entity, boolean, boolean)
+
+```java
+public static boolean remove(
+    @NotNull Entity entity,
+    boolean dropLoot,
+    boolean playSound
+)
+```
+
+Removes furniture by its meta entity, with control over loot drops and break sound.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `entity` | `Entity` | The furniture's meta entity |
+| `dropLoot` | `boolean` | Whether to drop the furniture's loot |
+| `playSound` | `boolean` | Whether to play the break sound |
+
+**Returns** `true` if the furniture was found and removed.
+
+```java
+CraftEngineFurniture.remove(entity, true, true);
+```
+
+---
+
+## remove(Entity, Player, boolean, boolean)
+
+```java
+public static boolean remove(
+    @NotNull Entity entity,
+    @Nullable Player player,
+    boolean dropLoot,
+    boolean playSound
+)
+```
+
+Removes furniture by its meta entity and attributes the removal to a player, which affects loot context (e.g. looting enchantment, player-specific drops).
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `entity` | `Entity` | The furniture's meta entity |
+| `player` | `Player` | The player responsible for removing the furniture, or `null` |
+| `dropLoot` | `boolean` | Whether to drop the furniture's loot |
+| `playSound` | `boolean` | Whether to play the break sound |
+
+**Returns** `true` if the furniture was found and removed.
+
+```java
+CraftEngineFurniture.remove(entity, player, true, true);
+```
+
+---
+
+## remove(Furniture, boolean, boolean)
+
+```java
+public static void remove(
+    @NotNull Furniture furniture,
+    boolean dropLoot,
+    boolean playSound
+)
+```
+
+Removes furniture using a `Furniture` instance directly, without player attribution.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `furniture` | `Furniture` | The loaded furniture instance |
+| `dropLoot` | `boolean` | Whether to drop the furniture's loot |
+| `playSound` | `boolean` | Whether to play the break sound |
+
+```java
+// obtained from an event or a lookup
+CraftEngineFurniture.remove(bukkitFurniture, true, true);
+```
+
+---
+
+## remove(Furniture, Player, boolean, boolean)
+
+```java
+public static void remove(
+    @NotNull Furniture furniture,
+    @Nullable Player player,
+    boolean dropLoot,
+    boolean playSound
+)
+```
+
+Removes furniture using a `Furniture` instance and attributes the removal to a player for loot context.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `furniture` | `Furniture` | The loaded furniture instance |
+| `player` | `Player` | The player responsible, or `null` |
+| `dropLoot` | `boolean` | Whether to drop the furniture's loot |
+| `playSound` | `boolean` | Whether to play the break sound |
+
+```java
+@EventHandler
+public void onFurnitureBreak(FurnitureBreakEvent event) {
+    // Override default removal with custom handling
+    event.setCancelled(true);
+    CraftEngineFurniture.remove(
+        event.furniture(),
+        event.getPlayer(),
+        event.dropItems(),
+        true
+    );
+}
+```

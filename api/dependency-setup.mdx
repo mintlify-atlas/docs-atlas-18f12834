@@ -1,0 +1,135 @@
+---
+title: 'Add CraftEngine as a plugin dependency'
+description: 'Set up the CraftEngine Maven repository and add the core, bukkit, and optional adventure dependencies to your Gradle or Maven build script.'
+---
+
+Before you can call any CraftEngine API method from your plugin, you need to add the CraftEngine artifacts to your build and declare the plugin dependency so that Bukkit loads CraftEngine before your plugin starts.
+
+## Repository
+
+All CraftEngine artifacts are published to the MoMiRealms releases repository:
+
+```
+https://repo.momirealms.net/releases/
+```
+
+Add it to your build script before declaring the dependencies.
+
+## Dependencies
+
+CraftEngine is split into three artifacts:
+
+| Artifact | Required | Purpose |
+|---|---|---|
+| `craft-engine-core` | Yes | Core types: `Key`, `CustomBlock`, `CustomItem`, `CustomFurniture`, `ImmutableBlockState`, etc. |
+| `craft-engine-bukkit` | Yes | Bukkit-specific API classes (`CraftEngineBlocks`, `CraftEngineItems`, `CraftEngineFurniture`, events) |
+| `craft-engine-adventure` | Optional | Access to the Adventure library shaded inside CraftEngine |
+
+All three are `compileOnly` / `provided` — CraftEngine itself is loaded on the server at runtime, so you must not bundle these JARs in your plugin.
+
+<Note>
+  Always check the [latest release](https://github.com/Xiao-MoMi/craft-engine/releases) for the current version number. The examples below use `0.0.67`.
+</Note>
+
+## Build scripts
+
+<CodeGroup>
+
+```kotlin Gradle (Kotlin DSL)
+repositories {
+    maven("https://repo.momirealms.net/releases/")
+}
+
+dependencies {
+    compileOnly("net.momirealms:craft-engine-core:0.0.67")
+    compileOnly("net.momirealms:craft-engine-bukkit:0.0.67")
+    compileOnly("net.momirealms:craft-engine-adventure:0.0.67") // optional
+}
+```
+
+```groovy Gradle (Groovy DSL)
+repositories {
+    maven { url 'https://repo.momirealms.net/releases/' }
+}
+
+dependencies {
+    compileOnly 'net.momirealms:craft-engine-core:0.0.67'
+    compileOnly 'net.momirealms:craft-engine-bukkit:0.0.67'
+    compileOnly 'net.momirealms:craft-engine-adventure:0.0.67' // optional
+}
+```
+
+```xml Maven (pom.xml)
+<repositories>
+  <repository>
+    <id>momirealms-releases</id>
+    <url>https://repo.momirealms.net/releases/</url>
+  </repository>
+</repositories>
+
+<dependencies>
+  <dependency>
+    <groupId>net.momirealms</groupId>
+    <artifactId>craft-engine-core</artifactId>
+    <version>0.0.67</version>
+    <scope>provided</scope>
+  </dependency>
+  <dependency>
+    <groupId>net.momirealms</groupId>
+    <artifactId>craft-engine-bukkit</artifactId>
+    <version>0.0.67</version>
+    <scope>provided</scope>
+  </dependency>
+  <!-- optional -->
+  <dependency>
+    <groupId>net.momirealms</groupId>
+    <artifactId>craft-engine-adventure</artifactId>
+    <version>0.0.67</version>
+    <scope>provided</scope>
+  </dependency>
+</dependencies>
+```
+
+</CodeGroup>
+
+## Declare the plugin dependency
+
+You must tell Bukkit that your plugin depends on CraftEngine so the load order is correct. Add the appropriate declaration to your `plugin.yml`:
+
+```yaml plugin.yml
+# Hard dependency — your plugin will not load if CraftEngine is absent
+depend:
+  - CraftEngine
+
+# --- OR ---
+
+# Soft dependency — your plugin loads even without CraftEngine,
+# but CraftEngine will be initialized first when it is present
+softdepend:
+  - CraftEngine
+```
+
+Use `depend` if your plugin requires CraftEngine to function at all. Use `softdepend` if CraftEngine integration is optional and you guard all API calls with a presence check.
+
+<Tip>
+  If you use `softdepend`, check that CraftEngine is loaded before calling any API method:
+
+  ```java
+  if (Bukkit.getPluginManager().isPluginEnabled("CraftEngine")) {
+      // safe to use CraftEngine API
+  }
+  ```
+</Tip>
+
+## Verify the setup
+
+After adding the dependency, confirm your IDE resolves the main API classes:
+
+```java
+import net.momirealms.craftengine.bukkit.api.CraftEngineBlocks;
+import net.momirealms.craftengine.bukkit.api.CraftEngineItems;
+import net.momirealms.craftengine.bukkit.api.CraftEngineFurniture;
+import net.momirealms.craftengine.core.util.Key;
+```
+
+If your build tool resolves these imports correctly, the dependency is configured. The next step is registering a `CraftEngineReloadEvent` listener so you can safely access loaded content. See the [API introduction](/api/introduction) for details.

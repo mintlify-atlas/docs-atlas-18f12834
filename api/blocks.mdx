@@ -1,0 +1,474 @@
+---
+title: 'CraftEngineBlocks: place and query custom blocks'
+description: 'API reference for CraftEngineBlocks — methods to place, remove, query, and check custom blocks in a Bukkit world using the CraftEngine Java API.'
+---
+
+`CraftEngineBlocks` is a final utility class in `net.momirealms.craftengine.bukkit.api` that gives you direct access to custom block placement, removal, and state querying. Every method is `static` — you never instantiate this class. All world-mutating methods must be called from a thread that owns the relevant region (Folia compatibility).
+
+## loadedBlocks()
+
+```java
+@NotNull
+public static Map<Key, CustomBlock> loadedBlocks()
+```
+
+Returns an unmodifiable map of all currently loaded custom blocks. The map keys are unique `Key` identifiers and the values are the corresponding `CustomBlock` instances.
+
+<Warning>
+  Do not call this method during `onEnable()`. The map will be empty until CraftEngine finishes loading its content. Listen for `CraftEngineReloadEvent` and access this method from within that handler.
+</Warning>
+
+```java
+@EventHandler
+public void onReload(CraftEngineReloadEvent event) {
+    Map<Key, CustomBlock> blocks = CraftEngineBlocks.loadedBlocks();
+    blocks.forEach((id, block) ->
+        getLogger().info("Loaded block: " + id.toString()));
+}
+```
+
+---
+
+## byId(Key id)
+
+```java
+@Nullable
+public static CustomBlock byId(@NotNull Key id)
+```
+
+Gets a custom block by its unique identifier.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `Key` | The unique namespaced key of the custom block |
+
+**Returns** the `CustomBlock` for the given ID, or `null` if no block with that ID is loaded.
+
+```java
+Key id = Key.of("myplugin", "ruby_ore");
+CustomBlock block = CraftEngineBlocks.byId(id);
+if (block != null) {
+    player.sendMessage("Found block: " + id);
+}
+```
+
+---
+
+## place(Location, ImmutableBlockState, boolean)
+
+```java
+public static boolean place(
+    @NotNull Location location,
+    @NotNull ImmutableBlockState block,
+    boolean playSound
+)
+```
+
+Places a custom block state at a location using the default `UPDATE_ALL` update option.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `location` | `Location` | The world location to place the block |
+| `block` | `ImmutableBlockState` | The custom block state to place |
+| `playSound` | `boolean` | Whether to play the block's place sound |
+
+**Returns** `true` if the block was placed successfully.
+
+```java
+CustomBlock block = CraftEngineBlocks.byId(Key.of("mypack", "maple_log"));
+if (block != null) {
+    boolean placed = CraftEngineBlocks.place(
+        targetBlock.getLocation(),
+        block.defaultState(),
+        true
+    );
+}
+```
+
+---
+
+## place(Location, Key, boolean)
+
+```java
+public static boolean place(
+    @NotNull Location location,
+    @NotNull Key blockId,
+    boolean playSound
+)
+```
+
+Places the default state of a custom block identified by its key.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `location` | `Location` | The world location to place the block |
+| `blockId` | `Key` | The unique ID of the custom block to place |
+| `playSound` | `boolean` | Whether to play the block's place sound |
+
+**Returns** `true` if the block was placed, `false` if no block with that ID exists.
+
+```java
+boolean placed = CraftEngineBlocks.place(
+    player.getTargetBlockExact(5).getLocation(),
+    Key.of("mypack", "crystal_block"),
+    true
+);
+```
+
+---
+
+## place(Location, Key, CompoundTag, boolean)
+
+```java
+public static boolean place(
+    @NotNull Location location,
+    @NotNull Key blockId,
+    @NotNull CompoundTag properties,
+    boolean playSound
+)
+```
+
+Places a custom block with specific block-state properties using the default `UPDATE_ALL` update option.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `location` | `Location` | The world location to place the block |
+| `blockId` | `Key` | The unique ID of the custom block |
+| `properties` | `CompoundTag` | A NBT compound tag describing the block-state properties to apply |
+| `playSound` | `boolean` | Whether to play the block's place sound |
+
+**Returns** `true` if the block was placed, `false` if no block with that ID exists.
+
+```java
+CompoundTag props = new CompoundTag();
+props.putString("facing", "north");
+
+boolean placed = CraftEngineBlocks.place(
+    location,
+    Key.of("mypack", "directional_block"),
+    props,
+    false
+);
+```
+
+---
+
+## place(Location, Key, CompoundTag, UpdateOption, boolean)
+
+```java
+public static boolean place(
+    @NotNull Location location,
+    @NotNull Key blockId,
+    @NotNull CompoundTag properties,
+    @NotNull UpdateOption option,
+    boolean playSound
+)
+```
+
+Places a custom block with specific properties and a custom update option, giving you control over how neighbouring blocks are notified.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `location` | `Location` | The world location to place the block |
+| `blockId` | `Key` | The unique ID of the custom block |
+| `properties` | `CompoundTag` | Block-state properties to apply |
+| `option` | `UpdateOption` | Controls which block updates are sent after placement |
+| `playSound` | `boolean` | Whether to play the block's place sound |
+
+**Returns** `true` if the block was placed, `false` if no block with that ID exists.
+
+```java
+CompoundTag props = new CompoundTag();
+props.putString("axis", "y");
+
+CraftEngineBlocks.place(
+    location,
+    Key.of("mypack", "pillar"),
+    props,
+    UpdateOption.UPDATE_ALL_IMMEDIATE,
+    true
+);
+```
+
+---
+
+## place(Location, ImmutableBlockState, UpdateOption, boolean)
+
+```java
+public static boolean place(
+    @NotNull Location location,
+    @NotNull ImmutableBlockState block,
+    @NotNull UpdateOption option,
+    boolean playSound
+)
+```
+
+Places a custom block state at a location with full control over the update option. This is the lowest-level overload — all other `place` overloads delegate to this one.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `location` | `Location` | The world location to place the block |
+| `block` | `ImmutableBlockState` | The custom block state to place |
+| `option` | `UpdateOption` | Controls which block updates are sent after placement |
+| `playSound` | `boolean` | Whether to play the block's place sound |
+
+**Returns** `true` if the block was placed successfully.
+
+```java
+ImmutableBlockState state = customBlock.getBlockState(props);
+CraftEngineBlocks.place(location, state, UpdateOption.NO_RERENDER, false);
+```
+
+---
+
+## remove(Block)
+
+```java
+public static boolean remove(@NotNull Block block)
+```
+
+Removes a block from the world if it is a custom block. Equivalent to calling `remove(block, false)`.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `block` | `Block` | The Bukkit block to remove |
+
+**Returns** `true` if the block was a custom block and was removed, `false` otherwise.
+
+```java
+Block target = player.getTargetBlockExact(5);
+if (target != null) {
+    boolean removed = CraftEngineBlocks.remove(target);
+}
+```
+
+---
+
+## remove(Block, boolean)
+
+```java
+public static boolean remove(@NotNull Block block, boolean isMoving)
+```
+
+Removes a block from the world if it is a custom block, with control over the moving flag passed to the underlying NMS layer.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `block` | `Block` | The Bukkit block to remove |
+| `isMoving` | `boolean` | Whether the block is being moved (e.g. by a piston) |
+
+**Returns** `true` if the block was a custom block and was removed, `false` otherwise.
+
+```java
+CraftEngineBlocks.remove(block, true); // treated as piston-moved
+```
+
+---
+
+## remove(Block, Player, boolean, boolean, boolean)
+
+```java
+public static boolean remove(
+    @NotNull Block block,
+    @Nullable Player player,
+    boolean isMoving,
+    boolean dropLoot,
+    boolean sendLevelEvent
+)
+```
+
+Removes a custom block with full control over loot drops and break effects.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `block` | `Block` | The Bukkit block to remove |
+| `player` | `Player` | The player who broke the block, or `null` for no attribution |
+| `isMoving` | `boolean` | Whether the block is being moved |
+| `dropLoot` | `boolean` | Whether to drop the block's loot at the block location |
+| `sendLevelEvent` | `boolean` | Whether to send the break particles and sound effect |
+
+**Returns** `true` if the block was a custom block and was removed, `false` otherwise.
+
+```java
+@EventHandler
+public void onBlockBreak(BlockBreakEvent event) {
+    Block block = event.getBlock();
+    if (CraftEngineBlocks.isCustomBlock(block)) {
+        event.setCancelled(true);
+        CraftEngineBlocks.remove(
+            block,
+            event.getPlayer(),
+            false,  // isMoving
+            true,   // dropLoot
+            true    // sendLevelEvent
+        );
+    }
+}
+```
+
+---
+
+## Deprecated remove overload
+
+<Warning>
+  The six-parameter `remove(Block, Player, boolean, boolean, boolean, boolean)` overload is **deprecated and will be removed** in a future version. Use `remove(Block, Player, boolean, boolean, boolean)` instead, passing `playSound || sendParticles` as the `sendLevelEvent` argument.
+</Warning>
+
+```java
+@Deprecated(forRemoval = true)
+public static boolean remove(
+    @NotNull Block block,
+    @Nullable Player player,
+    boolean isMoving,
+    boolean dropLoot,
+    boolean playSound,
+    boolean sendParticles
+)
+```
+
+---
+
+## isCustomBlock(Block)
+
+```java
+public static boolean isCustomBlock(@NotNull Block block)
+```
+
+Checks whether a Bukkit block is a CraftEngine custom block.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `block` | `Block` | The Bukkit block to test |
+
+**Returns** `true` if the block is a custom block.
+
+```java
+Block target = player.getTargetBlockExact(5);
+if (target != null && CraftEngineBlocks.isCustomBlock(target)) {
+    player.sendMessage("That is a custom block!");
+}
+```
+
+---
+
+## getCustomBlockState(Block)
+
+```java
+@Nullable
+public static ImmutableBlockState getCustomBlockState(@NotNull Block block)
+```
+
+Gets the `ImmutableBlockState` for a Bukkit block.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `block` | `Block` | The Bukkit block to query |
+
+**Returns** the `ImmutableBlockState` if the block is a custom block, or `null` if it is not.
+
+```java
+ImmutableBlockState state = CraftEngineBlocks.getCustomBlockState(block);
+if (state != null) {
+    CustomBlock owner = state.owner().value();
+    player.sendMessage("Block type: " + owner.id());
+}
+```
+
+---
+
+## getCustomBlockState(BlockData)
+
+```java
+@Nullable
+public static ImmutableBlockState getCustomBlockState(@NotNull BlockData blockData)
+```
+
+Gets the `ImmutableBlockState` from a Bukkit `BlockData` object, useful when you have block data from an event or snapshot without a concrete world block.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `blockData` | `BlockData` | The Bukkit block data to inspect |
+
+**Returns** the `ImmutableBlockState` if this block data corresponds to a custom block, or `null` otherwise.
+
+```java
+BlockData data = player.getTargetBlockExact(5).getBlockData();
+ImmutableBlockState state = CraftEngineBlocks.getCustomBlockState(data);
+if (state != null) {
+    // handle custom block data
+}
+```
+
+---
+
+## getBukkitBlockData(ImmutableBlockState)
+
+```java
+@NotNull
+public static BlockData getBukkitBlockData(@NotNull ImmutableBlockState blockState)
+```
+
+Creates a Bukkit `BlockData` from a CraftEngine `ImmutableBlockState`. Use this when you need to pass a custom block state into a Bukkit API that accepts `BlockData`.
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `blockState` | `ImmutableBlockState` | The CraftEngine block state to convert |
+
+**Returns** a non-null Bukkit `BlockData` representing the given block state.
+
+```java
+ImmutableBlockState state = customBlock.defaultState();
+BlockData bukkitData = CraftEngineBlocks.getBukkitBlockData(state);
+block.setBlockData(bukkitData);
+```
+
+---
+
+## isVanillaBlockState(int)
+
+```java
+public static boolean isVanillaBlockState(int id)
+```
+
+Checks whether a numeric block state ID corresponds to a vanilla block state (as opposed to a CraftEngine custom state).
+
+**Parameters**
+
+| Name | Type | Description |
+|---|---|---|
+| `id` | `int` | The numeric block state registry ID |
+
+**Returns** `true` if the ID belongs to a vanilla block state.
+
+```java
+int stateId = /* obtained from NMS or packets */;
+if (!CraftEngineBlocks.isVanillaBlockState(stateId)) {
+    // it's a custom block state
+}
+```

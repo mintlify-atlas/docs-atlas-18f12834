@@ -1,0 +1,102 @@
+---
+title: "Recipe system and vanilla recipe management"
+description: "Enable or disable CraftEngine's recipe system, selectively disable vanilla recipes, and configure custom ingredient sources from other plugins."
+---
+
+CraftEngine's recipe system lets you define custom crafting recipes and control which vanilla recipes remain available to players. Configuration lives under the `recipe:` key in `config.yml`. The `gui:` section controls the item browser and recipe viewer that players use to discover these recipes.
+
+## Recipe system
+
+<ParamField path="recipe.enable" type="boolean" default="true">
+  Master switch for CraftEngine's entire recipe system. When set to `false`, no custom recipes are registered and all options in this section are ignored.
+</ParamField>
+
+## Disabling vanilla recipes
+
+<ParamField path="recipe.disable-vanilla-recipes.all" type="boolean" default="false">
+  Remove every vanilla recipe from the game. When enabled, the `list` option is ignored entirely.
+
+  <Warning>
+    Setting `all: true` disables **all** built-in Minecraft recipes, including basic tools, food, and blocks. Players will be unable to craft anything unless you have registered replacements. Use the `list` option for targeted removal instead.
+  </Warning>
+</ParamField>
+
+<ParamField path="recipe.disable-vanilla-recipes.list" type="string[]">
+  List of specific vanilla recipe keys to remove. This is the recommended approach when you only need to suppress a handful of recipes. Ignored when `all: true`.
+
+  ```yaml
+  disable-vanilla-recipes:
+    all: false
+    list:
+      - "minecraft:wooden_sword"
+      - "minecraft:stone_hoe"
+  ```
+</ParamField>
+
+## Custom ingredient sources
+
+<ParamField path="recipe.ingredient-sources" type="string[]">
+  List of external plugin ingredient sources that CraftEngine recognises in recipe definitions. Add supported plugin names here to use their items as ingredients in custom recipes.
+
+  ```yaml
+  ingredient-sources: []
+  ```
+</ParamField>
+
+## GUI — item browser and recipe viewer
+
+The `gui:` section configures the sounds and titles used in the built-in item browser and recipe viewer interface. These values reference internal CraftEngine image and sound identifiers.
+
+### Browser sounds
+
+<ParamField path="gui.browser.sounds.change-page" type="string" default="minecraft:ui.loom.take_result">
+  Sound played when the player navigates to the next or previous page in the browser.
+</ParamField>
+
+<ParamField path="gui.browser.sounds.return-page" type="string" default="minecraft:ui.button.click">
+  Sound played when the player returns to a previous screen.
+</ParamField>
+
+<ParamField path="gui.browser.sounds.pick-item" type="string" default="minecraft:entity.item.pickup">
+  Sound played when the player selects an item from the browser.
+</ParamField>
+
+<ParamField path="gui.browser.sounds.click-button" type="string" default="minecraft:ui.hud.bubble_pop">
+  Sound played when the player clicks a generic UI button.
+</ParamField>
+
+### Browser titles
+
+<ParamField path="gui.browser.main.title" type="string">
+  Title rendered at the top of the main item browser inventory. Uses MiniMessage formatting and CraftEngine image tags for the background texture.
+</ParamField>
+
+<ParamField path="gui.browser.category.title" type="string">
+  Title rendered at the top of the category view.
+</ParamField>
+
+### Recipe viewer titles
+
+The recipe viewer supports multiple recipe types. Each type has its own `title` field that displays a matching background image.
+
+<Accordion title="Recipe type titles">
+
+| Recipe type | Config key |
+|-------------|------------|
+| No recipe found | `gui.browser.recipe.none.title` |
+| Blasting | `gui.browser.recipe.blasting.title` |
+| Smelting | `gui.browser.recipe.smelting.title` |
+| Smoking | `gui.browser.recipe.smoking.title` |
+| Campfire cooking | `gui.browser.recipe.campfire-cooking.title` |
+| Crafting table | `gui.browser.recipe.crafting.title` |
+| Stonecutter | `gui.browser.recipe.stonecutting.title` |
+| Smithing transform | `gui.browser.recipe.smithing-transform.title` |
+| Brewing | `gui.browser.recipe.brewing.title` |
+
+All title strings use MiniMessage formatting. CraftEngine's `<image:...>` and `<shift:...>` tags position the background image correctly inside the inventory window.
+
+</Accordion>
+
+<Note>
+  The GUI icon identifiers (such as `internal:next_page_0` and `internal:return`) are built-in CraftEngine resources. You do not need to define them in your resource pack.
+</Note>

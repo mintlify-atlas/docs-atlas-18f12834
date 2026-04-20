@@ -1,0 +1,354 @@
+---
+title: "Create custom items with models and behaviors"
+description: "Define custom items in CraftEngine — configure materials, models, item behaviors, attributes, and equipment like armor and tools."
+---
+
+Custom items in CraftEngine are defined under the `items:` section of any configuration YAML file. Each item entry specifies the underlying vanilla material, how the item looks to the client, and any special server-side behaviors. CraftEngine generates the necessary resource pack assets automatically based on the model and texture paths you provide.
+
+## Basic item structure
+
+At minimum, an item definition needs a `data:` section and either a `texture:` shorthand or a `model:` block.
+
+```yaml
+items:
+  default:my_item:
+    material: paper          # vanilla base material (default: nether_brick)
+    data:
+      item-name: <!i>My Item # display name; <!i> removes italic formatting
+    texture: minecraft:item/custom/my_item  # shorthand for a single layer0 texture
+```
+
+Use `texture:` when you only need a simple flat texture. For items with multiple textures or conditional models, use the full `model:` block described below.
+
+### Localization keys
+
+Item names often use MiniMessage language keys so players see them in their own language:
+
+```yaml
+data:
+  item-name: <!i><lang:item.default.my_item>
+```
+
+## Model types
+
+### `minecraft:model` — static model
+
+The most common type. Provide a `path` for the model's resource location and an optional `generation` block to let CraftEngine auto-generate the model JSON:
+
+```yaml
+model:
+  type: minecraft:model
+  path: minecraft:item/custom/my_item
+  generation:
+    parent: minecraft:item/handheld
+    textures:
+      layer0: minecraft:item/custom/my_item
+```
+
+### `minecraft:condition` — state-dependent model
+
+Use this type when the model should change based on a property. The drill switches between a default view and a highlighted "selected" view:
+
+```yaml
+model:
+  type: minecraft:condition
+  property: "minecraft:selected"
+  on-false:
+    type: "minecraft:model"
+    path: "minecraft:item/custom/drill"
+    generation:
+      parent: minecraft:item/handheld
+      textures:
+        layer0: minecraft:item/custom/drill
+  on-true:
+    type: "minecraft:model"
+    path: "minecraft:item/custom/drill_selected"
+    generation:
+      parent: minecraft:item/handheld
+      textures:
+        layer0: minecraft:item/custom/drill_selected
+```
+
+### `minecraft:select` — multi-case model
+
+Select a model based on an enumerated property. Used for items with display-context–aware rendering (e.g., tridents that look different in-hand vs. in an item frame):
+
+```yaml
+model:
+  type: minecraft:select
+  property: minecraft:display_context
+  cases:
+    - when:
+        - gui
+        - ground
+        - fixed
+        - on_shelf
+      model:
+        type: minecraft:model
+        path: minecraft:item/custom/topaz_trident
+        generation:
+          parent: minecraft:item/generated
+          textures:
+            layer0: minecraft:item/custom/topaz_trident
+  fallback:
+    type: minecraft:condition
+    property: minecraft:using_item
+    on-true:
+      type: minecraft:model
+      path: minecraft:item/custom/topaz_trident_throwing
+    on-false:
+      type: minecraft:model
+      path: minecraft:item/custom/topaz_trident_in_hand
+```
+
+### Legacy model support
+
+For clients below 1.21.2, add a `legacy-model:` block alongside your primary `model:` block. It uses custom model data overrides rather than the newer item-model system:
+
+```yaml
+legacy-model:
+  path: minecraft:item/custom/drill_selected
+  generation:
+    parent: minecraft:item/handheld
+    textures:
+      layer0: minecraft:item/custom/drill_selected
+```
+
+For items with override predicates (such as a trident with a `throwing` state), use the `overrides:` list inside `legacy-model:`:
+
+```yaml
+legacy-model:
+  path: minecraft:item/custom/topaz_trident_in_hand
+  overrides:
+    - path: minecraft:item/custom/topaz_trident_throwing
+      predicate:
+        throwing: 1
+```
+
+## Item behaviors
+
+Behaviors add server-side logic to an item. Specify them under the `behavior:` key as a single map or a list.
+
+### `block_item`
+
+Makes the item place a block when used on a surface:
+
+```yaml
+behavior:
+  - type: block_item
+    block: default:amethyst_torch
+```
+
+### `wall_block_item`
+
+A variant of `block_item` that places a different block when the player clicks a wall face:
+
+```yaml
+behavior:
+  - type: wall_block_item
+    block: default:amethyst_wall_torch
+```
+
+Combine both in one item definition so one inventory item handles both floor and wall placement:
+
+```yaml
+behavior:
+  - type: wall_block_item
+    block: default:amethyst_wall_torch
+  - type: block_item
+    block: default:amethyst_torch
+  - type: block_item
+    block: default:amethyst_wall_torch
+```
+
+### `furniture_item`
+
+Makes the item place a furniture entity. See the [furniture guide](/guides/furniture) for the full `rules:` and `furniture:` structure.
+
+### `range_mining_item`
+
+Adds area mining to a tool. Each entry in `range:` is an `x,y,z` offset defining an additional block to break:
+
+```yaml
+behavior:
+  - type: range_mining_item
+    range:
+      - 0,0,1
+      - 0,0,2
+```
+
+## Custom tools and weapons
+
+Tools and weapons use standard vanilla materials as the base. Override `max-damage` in `data:` to set a custom durability. The `texture:` shorthand applies a single texture, while `settings.tags` attaches tool-tier tags:
+
+```yaml
+items:
+  default:topaz_pickaxe:
+    material: golden_pickaxe
+    settings:
+      tags:
+        - default:topaz_tools
+    data:
+      item-name: <!i><#FF8C00><lang:item.default.topaz_pickaxe>
+      tooltip-style: minecraft:topaz
+      max-damage: 64
+    texture: minecraft:item/custom/topaz_pickaxe
+```
+
+Weapons follow the same pattern. For items with multiple animation textures (bows, crossbows, fishing rods), provide all textures as a list under `textures:`:
+
+```yaml
+items:
+  default:topaz_bow:
+    material: bow
+    settings:
+      tags:
+        - default:topaz_tools
+    data:
+      item-name: <!i><#FF8C00><lang:item.default.topaz_bow>
+      tooltip-style: minecraft:topaz
+    textures:
+      - minecraft:item/custom/topaz_bow
+      - minecraft:item/custom/topaz_bow_pulling_0
+      - minecraft:item/custom/topaz_bow_pulling_1
+      - minecraft:item/custom/topaz_bow_pulling_2
+```
+
+## Custom armor
+
+Armor uses a template-driven pattern to generate all four pieces from one definition. The `equipment:` block under `settings:` links the worn appearance to a custom equipment asset:
+
+```yaml
+templates:
+  default:armor/topaz:
+    material: chainmail_${part}
+    data:
+      item-name: <!i><#FF8C00><lang:item.default.topaz_${part}>
+      tooltip-style: minecraft:topaz
+    settings:
+      tags:
+        - default:topaz_tools
+        - minecraft:trimmable_armor
+      equipment:
+        asset-id: default:topaz
+        $$>=1.21.2:
+          slot: ${slot}
+    model:
+      template: default:model/armor_trim
+      arguments:
+        texture: minecraft:item/custom/topaz_${part}
+
+items:
+  default:topaz_helmet:
+    template:
+      - default:armor/topaz
+    arguments:
+      part: helmet
+      slot: head
+      material: topaz
+  default:topaz_chestplate:
+    template:
+      - default:armor/topaz
+    arguments:
+      part: chestplate
+      slot: chest
+      material: topaz
+  default:topaz_leggings:
+    template:
+      - default:armor/topaz
+    arguments:
+      part: leggings
+      slot: legs
+      material: topaz
+  default:topaz_boots:
+    template:
+      - default:armor/topaz
+    arguments:
+      part: boots
+      slot: feet
+      material: topaz
+```
+
+The `$$>=1.21.2:` prefix gates config keys to a specific version range. CraftEngine applies those keys only when the client or server meets the condition.
+
+The `equipments:` section defines how the armor looks when worn. For 1.21.2 and above, CraftEngine uses a component-based system; for older versions it falls back to armor trims:
+
+```yaml
+equipments:
+  $$>=1.21.2:
+    default:topaz:
+      type: component
+      humanoid: minecraft:entity/equipment/humanoid/topaz
+      humanoid-leggings: minecraft:entity/equipment/humanoid_leggings/topaz
+  $$<1.21.2:
+    default:topaz:
+      type: trim
+      humanoid: minecraft:entity/equipment/humanoid/topaz
+      humanoid-leggings: minecraft:entity/equipment/humanoid_leggings/topaz
+```
+
+## Custom elytra
+
+Elytra customization requires 1.21.2 or higher. Specify the `equippable` slot, an `asset-id`, and a `wings` texture reference. Provide both the normal and broken texture variants in the `textures:` list:
+
+```yaml
+items:
+  $$>=1.21.2#flame_elytra:
+    default:flame_elytra:
+      material: elytra
+      settings:
+        equippable:
+          slot: chest
+          asset-id: flame
+          wings: flame_elytra
+      data:
+        item-name: <!i><#FF8C00><lang:item.default.flame_elytra>
+      textures:
+        - minecraft:item/custom/flame_elytra
+        - minecraft:item/custom/flame_elytra_broken
+```
+
+<Note>
+The `$$>=1.21.2#flame_elytra:` prefix is a version-gated block key. CraftEngine registers the item only when running on 1.21.2 or above, and the `#flame_elytra` suffix is a comment-style label for readability.
+</Note>
+
+## Full example: drill
+
+The drill demonstrates a `minecraft:condition` model for a selected-state texture change and the `range_mining_item` behavior for area mining:
+
+```yaml
+items:
+  default:drill:
+    material: stone_pickaxe
+    data:
+      item-name: <!i><white><lang:item.default.drill>
+      max-damage: 512
+    behavior:
+      - type: range_mining_item
+        range:
+          - 0,0,1
+          - 0,0,2
+    model:
+      type: minecraft:condition
+      property: "minecraft:selected"
+      on-false:
+        type: "minecraft:model"
+        path: "minecraft:item/custom/drill"
+        generation:
+          parent: minecraft:item/handheld
+          textures:
+            layer0: minecraft:item/custom/drill
+      on-true:
+        type: "minecraft:model"
+        path: "minecraft:item/custom/drill_selected"
+        generation:
+          parent: minecraft:item/handheld
+          textures:
+            layer0: minecraft:item/custom/drill_selected
+    legacy-model:
+      path: minecraft:item/custom/drill_selected
+      generation:
+        parent: minecraft:item/handheld
+        textures:
+          layer0: minecraft:item/custom/drill_selected
+```

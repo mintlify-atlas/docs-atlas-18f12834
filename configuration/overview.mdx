@@ -1,0 +1,542 @@
+---
+title: "CraftEngine configuration overview"
+description: "Overview of every CraftEngine configuration file — config.yml, pack.yml, commands.yml — and the directory layout for custom content packs."
+---
+
+CraftEngine generates three top-level configuration files inside `plugins/CraftEngine/` on first startup: `config.yml` (main plugin settings), `commands.yml` (command toggle list), and individual `pack.yml` files for each content pack inside `resources/`. This page describes each file, its sections, and how they relate to one another.
+
+After changing any configuration file, run `/ce reload` to apply changes without restarting the server. Changes to `commands.yml` are the exception — those require a full server restart.
+
+## Directory layout
+
+```
+plugins/CraftEngine/
+├── config.yml
+├── commands.yml
+├── generated/
+│   └── resource_pack.zip
+└── resources/
+    └── <pack-name>/          # one directory per content pack
+        ├── pack.yml
+        ├── configuration/
+        │   ├── blocks/       # .yml files defining custom blocks
+        │   ├── items/        # .yml files defining custom items
+        │   ├── furniture/    # .yml files defining furniture
+        │   ├── templates/    # reusable template fragments
+        │   ├── categories.yml
+        │   ├── emoji.yml
+        │   └── lang.yml
+        └── resourcepack/     # raw resource pack assets (textures, models, sounds)
+```
+
+You can create as many packs as you need by adding new directories under `resources/`. Each pack must have its own `pack.yml`.
+
+## pack.yml
+
+Every content pack requires a `pack.yml` at its root. The built-in `default` pack uses:
+
+```yaml
+author: XiaoMoMi
+version: 0.0.1
+description: Default Assets for CraftEngine
+namespace: default
+```
+
+| Field | Purpose |
+|-------|---------|
+| `author` | Display name of the pack author |
+| `version` | Pack version string (informational) |
+| `description` | Human-readable description of the pack |
+| `namespace` | Prefix for all item/block IDs in this pack (e.g. `default:amethyst_torch`) |
+
+The `namespace` value must be unique across all installed packs.
+
+---
+
+## config.yml
+
+`config.yml` is the main configuration file. It is divided into the following top-level sections.
+
+<AccordionGroup>
+
+  <Accordion title="Top-level flags">
+    These keys sit at the root of the file and control global behaviour:
+
+    ```yaml
+    config-version: '${config_version}'
+    metrics: true
+    update-checker: true
+    forced-locale: ''
+    ```
+
+    | Key | Default | Description |
+    |-----|---------|-------------|
+    | `metrics` | `true` | Enables anonymous usage statistics via bStats |
+    | `update-checker` | `true` | Checks for new CraftEngine releases on startup |
+    | `forced-locale` | `''` | Forces a specific locale (e.g. `zh_cn`) for all players; leave empty to use per-player locale |
+  </Accordion>
+
+  <Accordion title="resource-pack">
+    Controls resource pack generation, optimisation, protection (Premium), and delivery to players.
+
+    ```yaml
+    resource-pack:
+      path: "./generated/resource_pack.zip"
+      supported-version:
+        min: server
+        max: latest
+      description: "<gray>CraftEngine ResourcePack</gray>"
+      remove-tinted-leaves-particle: true
+      overlay-format: "ce_overlay_{version}"
+      override-uniform-font: true
+      generate-mod-assets: false
+      exclude-core-shaders: false
+      merge-external-folders:
+        - "ModelEngine/resource pack"
+      merge-external-zip-files:
+        - "CustomNameplates/resourcepack.zip"
+        - "BetterModel/build.zip"
+      exclude-file-extensions: ["md", "psd", "bbmodel", "db", "ini", "DS_Store"]
+    ```
+
+    **Validation sub-section** — checks generated packs for errors:
+
+    ```yaml
+      validation:
+        enable: true
+        fix-atlas: true
+        fix-missing-texture: true
+    ```
+
+    **Optimization sub-section** — reduces pack size without quality loss (disabled by default):
+
+    ```yaml
+      optimization:
+        enable: false
+        texture:
+          enable: true
+          zopfli-iterations: 0   # 0 = disabled; 4–8 recommended when enabled
+          exclude:
+            - assets/minecraft/textures/block/do_not_optimize
+        json:
+          enable: true
+          exclude: []
+    ```
+
+    **Delivery sub-section** — controls how and when the pack is sent to players:
+
+    ```yaml
+      delivery:
+        send-on-join: true
+        kick-if-declined: true
+        kick-if-failed-to-apply: false
+        prompt: "<yellow>To fully experience our server,<newline>please accept our custom resource pack.</yellow>"
+        strict-player-uuid-validation: true
+        auto-upload: true
+        resend-on-upload: true
+        file-to-upload: "./generated/resource_pack.zip"
+        hosting:
+          - type: "self"
+            ip: "localhost"
+            port: 8163
+            protocol: "http"
+            deny-non-minecraft-request: true
+            one-time-token: true
+            strict-validation: false
+            rate-limiting:
+              max-bandwidth-per-second: 5_000_000
+              min-download-speed-per-player: 50_000
+              qps-per-ip: 5/60
+    ```
+
+    <Note>
+    Replace `localhost` in the `hosting.ip` field with your server's public IP before deploying to production. See the [quickstart guide](/quickstart) for details.
+    </Note>
+
+    **Protection sub-section** (Premium exclusive) — obfuscates the generated ZIP to prevent extraction:
+
+    ```yaml
+      protection:
+        unprotected-copy: false
+        crash-tools:
+          method-1: false
+          method-2: false
+          method-3: false
+          method-4: false
+          method-5: true
+          method-6: false
+          method-7: false
+        incorrect-crc: false
+        fake-file-size: false
+        escape-json: false
+        fake-directory: false
+        break-texture: false
+        obfuscation:
+          enable: false
+          seed: 0
+    ```
+  </Accordion>
+
+  <Accordion title="item">
+    Controls item rendering, model data assignment, and item updater triggers.
+
+    ```yaml
+    item:
+      client-bound-model: true        # [Premium] Makes custom-model-data client-side only
+      always-use-item-model: true
+      always-use-custom-model-data: false
+      always-generate-model-overrides: false
+      non-italic-tag: false
+      default-material: nether_brick
+      update-triggers:
+        click-in-inventory: false
+        drop: false
+        pick-up: false
+      custom-model-data-starting-value:
+        default: 10000
+        overrides:
+          paper: 20000
+      default-drop-display:
+        enable: false
+        format: "<arg:count>x <name>"
+      data-fixer-upper:
+        enable: true
+        fallback-version: 3463
+    ```
+
+    | Key | Description |
+    |-----|-------------|
+    | `client-bound-model` | (Premium) Keeps `custom-model-data` and `item-model` client-side so model changes don't invalidate existing items |
+    | `always-use-item-model` | Adds both `custom-model-data` and `item-model` for packs that support 1.21.1 or below |
+    | `default-material` | The vanilla material used as the base item when no material is specified |
+    | `update-triggers` | Performance-intensive; only enable if you need to correct faults on existing player items |
+  </Accordion>
+
+  <Accordion title="equipment">
+    Configures custom armor using trim types by repurposing a vanilla armor slot.
+
+    ```yaml
+    equipment:
+      sacrificed-vanilla-armor:
+        type: chainmail
+        asset-id: minecraft:chainmail
+        humanoid: minecraft:trims/entity/humanoid/chainmail
+        humanoid-leggings: minecraft:trims/entity/humanoid_leggings/chainmail
+    ```
+
+    The `type` field determines which vanilla armor set is repurposed. Changing this requires updating the corresponding `asset-id`, `humanoid`, and `humanoid-leggings` values to match.
+  </Accordion>
+
+  <Accordion title="block">
+    Controls server-side custom block limits, sound system behaviour, and adventure-mode break/place checks.
+
+    ```yaml
+    block:
+      serverside-blocks: 2000
+      sound-system:
+        enable: true
+        process-cancelled-events:
+          step: true
+          break: true
+      simplify-adventure-break-check: false
+      simplify-adventure-place-check: false
+      deceive-bukkit-material:
+        default: bricks
+        overrides:
+          0: bricks
+          1~8: bricks
+    ```
+
+    | Key | Description |
+    |-----|-------------|
+    | `serverside-blocks` | Maximum number of real server-side block states. Increase in increments of 1000. Requires restart. |
+    | `sound-system.enable` | Prevents clients from hearing vanilla block sounds for custom blocks |
+    | `simplify-adventure-break-check` | When `true`, tools that break vanilla equivalents also break custom variants in adventure mode |
+    | `deceive-bukkit-material` | Controls what `Block.getMaterial()` returns for custom blocks; change if third-party plugins behave unexpectedly |
+  </Accordion>
+
+  <Accordion title="furniture">
+    Controls furniture entity visibility and hitbox collision type.
+
+    ```yaml
+    furniture:
+      hide-base-entity: true
+      collision-entity-type: interaction
+    ```
+
+    | Key | Options | Description |
+    |-----|---------|-------------|
+    | `hide-base-entity` | `true` / `false` | Hides invisible metadata entities used to track furniture state |
+    | `collision-entity-type` | `interaction` / `boat` | Entity type used for furniture hitboxes. Use `boat` for better anti-cheat compatibility. Requires restart. |
+  </Accordion>
+
+  <Accordion title="emoji">
+    Controls where CraftEngine parses emoji shortcodes and the maximum number of emojis per parse.
+
+    ```yaml
+    emoji:
+      contexts:
+        chat: true
+        book: true
+        anvil: true
+        sign: true
+      max-emojis-per-parse: 16
+    ```
+  </Accordion>
+
+  <Accordion title="image">
+    Controls the illegal-characters filter (prevents players from sending raw Unicode characters) and codepoint assignment for custom images.
+
+    ```yaml
+    image:
+      illegal-characters-filter:
+        anvil: true
+        book: true
+        chat: true
+        command: true
+        sign: true
+      codepoint-starting-value:
+        default: 19968
+        overrides:
+          minecraft:default: 57344
+    ```
+
+    <Warning>
+    Do not modify the `offset-characters` block unless you fully understand Minecraft's text rendering mechanics. Incorrect values will break image positioning across the entire plugin.
+    </Warning>
+  </Accordion>
+
+  <Accordion title="network">
+    Controls packet interception for rendering `<image>`, `<shift>`, and `<global>` tags in third-party plugin output, and disables chat reporting.
+
+    ```yaml
+    network:
+      disable-chat-report: false
+      disable-item-operations: false
+      intercept-packets:
+        system-chat: true
+        tab-list: true
+        player-info: true
+        set-score: true
+        actionbar: true
+        title: true
+        bossbar: true
+        container: true
+        team: true
+        scoreboard: true
+        entity-name: false
+        armor-stand: true
+        text-display: true
+        item: true
+        advancement: true
+        player-chat: true
+    ```
+
+    <Note>
+    Disable unused packet handlers to reduce Netty thread workload on busy servers.
+    </Note>
+  </Accordion>
+
+  <Accordion title="recipe">
+    Master switch for custom recipes and selective vanilla recipe disabling.
+
+    ```yaml
+    recipe:
+      enable: true
+      disable-vanilla-recipes:
+        all: false
+        list: []
+      ingredient-sources: []
+    ```
+
+    | Key | Description |
+    |-----|-------------|
+    | `enable` | Master toggle for all custom recipes |
+    | `disable-vanilla-recipes.all` | Disables every vanilla recipe when `true`; conflicts with `list` |
+    | `disable-vanilla-recipes.list` | Selectively disable specific vanilla recipes by their namespaced ID |
+    | `ingredient-sources` | Add external plugin item sources as recipe ingredients |
+  </Accordion>
+
+  <Accordion title="gui">
+    Configures the item browser, category, and recipe viewer GUIs — their titles, sounds, and navigation icons. All values reference internal CraftEngine image/item IDs and should only be changed if you are replacing the built-in UI assets.
+
+    ```yaml
+    gui:
+      browser:
+        sounds:
+          change-page: "minecraft:ui.loom.take_result"
+          return-page: "minecraft:ui.button.click"
+          pick-item: "minecraft:entity.item.pickup"
+          click-button: "minecraft:ui.hud.bubble_pop"
+        main:
+          title: "<white><shift:-11><image:internal:item_browser>"
+          # ... page navigation icons
+        category:
+          title: "<white><shift:-11><image:internal:category>"
+          # ... page navigation and return/exit icons
+        recipe:
+          get-item-icon: internal:get_item
+          # ... recipe type titles and navigation icons
+    ```
+  </Accordion>
+
+  <Accordion title="light-system">
+    Required for custom light-emitting blocks.
+
+    ```yaml
+    light-system:
+      enable: true
+      async-update: true
+    ```
+  </Accordion>
+
+  <Accordion title="chunk-system">
+    Controls how CraftEngine stores and restores custom block data when chunks load and unload.
+
+    ```yaml
+    chunk-system:
+      cache-system: true
+      compression-method: 4   # 1=NONE 2=DEFLATE 3=GZIP 4=LZ4 5=ZSTD
+      injection:
+        target: palette       # or "section" (use section for FAWE + Axiom)
+        use-fast-method: true
+      restore-vanilla-blocks-on-chunk-unload: true
+      restore-custom-blocks-on-chunk-load: true
+      sync-custom-blocks-on-chunk-load: false
+      process-invalid-blocks:
+        enable: false
+        remove: []
+        convert: {}
+      process-invalid-furniture:
+        enable: false
+        remove: []
+        convert: {}
+    ```
+
+    <Warning>
+    Setting `restore-vanilla-blocks-on-chunk-unload: false` risks permanent data loss if CraftEngine is ever removed from the server. Only disable this for temporary or test worlds.
+    </Warning>
+
+    | Compression method | Speed | Ratio |
+    |--------------------|-------|-------|
+    | `1` (NONE) | Instant | None |
+    | `2` (DEFLATE) | Medium-slow | Moderate |
+    | `3` (GZIP) | Medium-slow | Moderate |
+    | `4` (LZ4) | Blazing fast | Low |
+    | `5` (ZSTD) | Medium-fast | High |
+  </Accordion>
+
+  <Accordion title="misc">
+    Miscellaneous options for startup behaviour and third-party compatibility.
+
+    ```yaml
+    misc:
+      filter-configuration-phase-disconnect: false
+      delay-configuration-load: true
+      inject-packetevents: false
+    ```
+
+    | Key | Description |
+    |-----|-------------|
+    | `delay-configuration-load` | Defers config reading until after all plugins start; disable only if you need datapack-generated spawn chunks |
+    | `inject-packetevents` | Enables injection to fix issues with plugins that use the packetevents library |
+  </Accordion>
+
+  <Accordion title="debug">
+    Enables verbose logging for specific subsystems. All flags default to `false`.
+
+    ```yaml
+    debug:
+      common: false
+      furniture: false
+      item: false
+      resource-pack: false
+      block: false
+      entity-culling: false
+      packet: false
+      ignored-packets: []
+    ```
+
+    Enable only the subsystem you are troubleshooting to avoid excessive log output.
+  </Accordion>
+
+</AccordionGroup>
+
+---
+
+## commands.yml
+
+`commands.yml` lists every command CraftEngine registers. Each entry has an `enable` flag, a `permission` node, and a `usage` list.
+
+<Warning>
+Changes to `commands.yml` require a full server restart to take effect. Running `/ce reload` does **not** re-register or deregister commands.
+</Warning>
+
+```yaml
+reload:
+  enable: true
+  permission: ce.command.admin.reload
+  usage:
+    - /craftengine reload
+    - /ce reload
+
+get_item:
+  enable: true
+  permission: ce.command.admin.get_item
+  usage:
+    - /craftengine item get
+    - /ce item get
+
+item_browser_player:
+  enable: true
+  permission: ce.command.player.item_browser
+  usage:
+    - /ce
+```
+
+To disable a command entirely, set its `enable` flag to `false` and restart the server:
+
+```yaml
+search_recipe_player:
+  enable: false   # players can no longer run /search-recipe
+  permission: ce.command.player.search_recipe
+  usage:
+    - /search-recipe
+```
+
+The full list of commands defined in `commands.yml` includes:
+
+| Command key | Default aliases | Permission |
+|-------------|----------------|------------|
+| `reload` | `/ce reload` | `ce.command.admin.reload` |
+| `upload` | `/ce upload` | `ce.command.admin.upload` |
+| `send_resource_pack` | `/ce feature send-pack` | `ce.command.admin.send_resource_pack` |
+| `get_item` | `/ce item get` | `ce.command.admin.get_item` |
+| `give_item` | `/ce item give` | `ce.command.admin.give_item` |
+| `clear_item` | `/ce item clear` | `ce.command.admin.clear_item` |
+| `item_browser_player` | `/ce` | `ce.command.player.item_browser` |
+| `item_browser_admin` | `/ce item browser` | `ce.command.admin.item_browser` |
+| `search_usage_player` | `/search-usage` | `ce.command.player.search_usage` |
+| `search_recipe_player` | `/search-recipe` | `ce.command.player.search_recipe` |
+| `enable_resource` | `/ce resource enable` | `ce.command.admin.resource` |
+| `disable_resource` | `/ce resource disable` | `ce.command.admin.resource` |
+| `list_resource` | `/ce resource list` | `ce.command.admin.resource` |
+| `create_resource` | `/ce resource create` | `ce.command.admin.resource` |
+
+Debug commands (`debug_set_block`, `debug_spawn_furniture`, etc.) follow the same structure and can be disabled individually if you want to restrict access.
+
+---
+
+## Reloading configuration
+
+Run `/ce reload` after editing `config.yml` or any file under `resources/` to apply changes at runtime. The reload sequence:
+
+1. Re-reads `config.yml`.
+2. Re-reads all `pack.yml` files and content under `resources/`.
+3. Regenerates `generated/resource_pack.zip`.
+4. Re-uploads the pack to the configured host (if `auto-upload: true`).
+5. Resends the pack to connected players (if `resend-on-upload: true`).
+
+<Tip>
+If you only changed a texture or model file inside `resources/<pack>/resourcepack/`, a reload is all you need — no restart required.
+</Tip>

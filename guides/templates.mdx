@@ -1,0 +1,358 @@
+---
+title: "Reuse configurations with the template system"
+description: "Use CraftEngine's template system to define reusable block settings, block states, loot tables, models, and events across multiple content files."
+---
+
+CraftEngine's template system lets you define a configuration fragment once and reference it from many different content files. Templates reduce repetition across your block, item, and furniture definitions and make it easier to maintain consistency — for example, ensuring every ore block uses the same hardness or every piece of furniture has the same rotation event wired up correctly.
+
+## What templates are
+
+A template is a named configuration fragment stored under a `templates:` section. Any block, item, furniture, or recipe definition can pull in a template by referencing its ID and optionally passing arguments to fill in variable parts.
+
+Templates live in YAML files alongside your other content. The built-in templates are defined in `configuration/templates/` and are available under the `default:` namespace. You can define your own templates in any configuration file using the same syntax.
+
+## Template definition syntax
+
+Define templates under a top-level `templates:` key. The template key is the ID you will reference later:
+
+```yaml
+templates:
+  default:my_template:
+    hardness: 1.5
+    resistance: 6.0
+```
+
+Template files can group related templates under namespace headers like `templates#hardness:` or `templates#sounds:` — these headers are purely cosmetic and do not affect the IDs. The actual ID is always the key directly below the header:
+
+```yaml
+templates#hardness:
+  default:hardness/stone:
+    hardness: 1.5
+    resistance: 6.0
+  default:hardness/wood:
+    hardness: 2.0
+    resistance: 2.0
+```
+
+## Template arguments
+
+Templates support `${variable}` placeholders. When you apply the template, pass an `arguments:` map to fill them in. You can also provide a default with `${variable:-default}`:
+
+```yaml
+templates:
+  default:loot_table/basic:
+    pools:
+      - rolls: 1
+        conditions:
+          - type: survives_explosion
+        entries:
+          - type: item
+            item: ${item}
+            functions:
+              - type: set_count
+                add: false
+                count: ${count:-1}   # defaults to 1 if not provided
+```
+
+Apply it with:
+
+```yaml
+loot:
+  template: default:loot_table/basic
+  arguments:
+    item: default:amethyst_torch
+    # count is omitted, so it defaults to 1
+```
+
+Two special variables are always available without declaring them:
+
+- `${__NAMESPACE__}` — the namespace of the block or item using the template
+- `${__ID__}` — the ID (without namespace) of the block or item using the template
+
+The `default:loot_table/self` template uses these to drop the block itself without needing any arguments:
+
+```yaml
+templates:
+  default:loot_table/self:
+    pools:
+      - rolls: 1
+        conditions:
+          - type: survives_explosion
+        entries:
+          - type: item
+            item: ${__NAMESPACE__}:${__ID__}
+```
+
+## Applying templates
+
+### Block settings
+
+Use a `template:` list under `settings:` to merge multiple templates. Then override specific keys with `overrides:`:
+
+```yaml
+settings:
+  template:
+    - default:sound/wood
+    - default:hardness/none
+  overrides:
+    push-reaction: destroy
+    replaceable: false
+    luminance: 15
+```
+
+Templates are merged in order. Later templates override earlier ones; `overrides:` applies last.
+
+### Inline template shorthand
+
+For a single template, you can use the inline shorthand with `::` separators:
+
+```yaml
+settings:
+  correct-tools::template: default:pickaxe_power/level_1
+```
+
+This is equivalent to:
+
+```yaml
+settings:
+  correct-tools:
+    template: default:pickaxe_power/level_1
+```
+
+## Block settings templates
+
+`block_settings.yml` provides composite settings templates that cover sound, hardness, flammability, and tag groups for common block types:
+
+| Template | What it includes |
+| --- | --- |
+| `default:settings/solid_1x1x1` | `is-suffocating`, `is-view-blocking`, `is-redstone-conductor`, `can-occlude` all true |
+| `default:settings/transparent_1x1x1` | Same properties all false |
+| `default:settings/planks` | Wood sounds, planks hardness, solid, axe-mineable, burnable |
+| `default:settings/wood` | Wood sounds, wood hardness, axe-mineable, burnable |
+| `default:settings/ore` | Stone sounds, solid, pickaxe-mineable, hardness 3.0 |
+| `default:settings/deepslate_ore` | Deepslate sounds, solid, pickaxe-mineable, hardness 4.5 |
+| `default:settings/leaves` | Grass sounds, leaves hardness, hoe-mineable, burnable |
+| `default:settings/sapling` | Grass sounds, destroyable, randomly-ticking |
+
+The ore templates also accept a `break_power` argument, used internally via `correct-tools::template`:
+
+```yaml
+settings:
+  template:
+    - default:sound/stone
+    - default:settings/solid_1x1x1
+  overrides:
+    hardness: 3.0
+    resistance: 3.0
+    tags: ["minecraft:mineable/pickaxe"]
+    correct-tools::template: default:pickaxe_power/level_${break_power}
+```
+
+## Sound templates
+
+Sound templates expand to full break/step/place/hit/fall event maps. Reference them in `settings.template:`:
+
+```yaml
+settings:
+  template:
+    - default:sound/metal
+```
+
+Available sound templates: `default:sound/wood`, `default:sound/stone`, `default:sound/metal`, `default:sound/deepslate`, `default:sound/glass`, `default:sound/sand`, `default:sound/gravel`, `default:sound/grass`, `default:sound/snow`, `default:sound/bamboo`, `default:sound/vine`, `default:sound/lantern`, `default:sound/amethyst_block`.
+
+All of these are themselves instances of `default:sound/block_template`, which you can use directly if you need a custom block type:
+
+```yaml
+# Generates sounds like minecraft:block.mytype.break etc.
+settings:
+  template: default:sound/block_template
+  arguments:
+    block_type: mytype
+```
+
+## Hardness templates
+
+| Template | `hardness` | `resistance` |
+| --- | --- | --- |
+| `default:hardness/none` | 0 | 0 |
+| `default:hardness/glass` | 0.3 | 0.3 |
+| `default:hardness/leaves` | 0.2 | 0.2 |
+| `default:hardness/wool` | 0.8 | 0.8 |
+| `default:hardness/button` | 0.5 | 0.5 |
+| `default:hardness/melon` | 1.0 | 1.0 |
+| `default:hardness/wood` | 2.0 | 2.0 |
+| `default:hardness/planks` | 2.0 | 3.0 |
+| `default:hardness/stone` | 1.5 | 6.0 |
+| `default:hardness/deepslate` | 3.0 | 6.0 |
+| `default:hardness/obsidian` | 50.0 | 1200.0 |
+
+## Loot table templates
+
+`loot_tables.yml` provides ready-made loot pools for the most common drop patterns:
+
+<AccordionGroup>
+  <Accordion title="default:loot_table/self — drop the block itself">
+    No arguments required. Drops the block whose namespace and ID match the template caller:
+
+    ```yaml
+    loot:
+      template: default:loot_table/self
+    ```
+  </Accordion>
+  <Accordion title="default:loot_table/basic — drop a specific item">
+    Arguments: `item` (required), `count` (optional, defaults to 1):
+
+    ```yaml
+    loot:
+      template: default:loot_table/basic
+      arguments:
+        item: default:amethyst_torch
+        count: 2
+    ```
+  </Accordion>
+  <Accordion title="default:loot_table/furniture — drop original furniture item">
+    Arguments: `item` (fallback if the original cannot be determined):
+
+    ```yaml
+    loot:
+      template: default:loot_table/furniture
+      arguments:
+        item: default:wooden_chair
+    ```
+  </Accordion>
+  <Accordion title="default:loot_table/ore — silk touch / fortune drops">
+    Arguments: `ore_block`, `ore_drop`, `ore_drop_count` (optional, defaults to 1):
+
+    ```yaml
+    loot:
+      template: default:loot_table/ore
+      arguments:
+        ore_block: default:topaz_ore
+        ore_drop: default:topaz
+    ```
+  </Accordion>
+  <Accordion title="default:loot_table/silk_touch — only drops with silk touch">
+    Arguments: `item`, `count` (optional, defaults to 1):
+
+    ```yaml
+    loot:
+      template: default:loot_table/silk_touch
+      arguments:
+        item: default:special_glass
+    ```
+  </Accordion>
+  <Accordion title="default:loot_table/door — double door drop fix">
+    No arguments required. Prevents duplication by only dropping from the lower half:
+
+    ```yaml
+    loot:
+      template: default:loot_table/door
+    ```
+  </Accordion>
+  <Accordion title="default:loot_table/slab — double slab drops two">
+    No arguments required. Drops 2 items when the slab is in `double` type state:
+
+    ```yaml
+    loot:
+      template: default:loot_table/slab
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Model generation templates
+
+`models.yml` provides templates for the most common item model shapes. Reference them inside an item's `model:` block:
+
+```yaml
+model:
+  template: default:model/handheld
+  arguments:
+    model: minecraft:item/custom/my_sword
+    texture: minecraft:item/custom/my_sword
+```
+
+| Template | Arguments | Description |
+| --- | --- | --- |
+| `default:model/cube_all` | `model`, `texture` | Block with same texture on all sides |
+| `default:model/simplified_cube_all` | `path` | Same as cube_all but path serves as both model and texture |
+| `default:model/cube_column` | `model`, `end_texture`, `side_texture` | Pillar-style block |
+| `default:model/generated` | `model`, `texture` | Flat item (generated parent) |
+| `default:model/simplified_generated` | `path` | Flat item, path as both model and texture |
+| `default:model/handheld` | `model`, `texture` | Tool/weapon held in hand |
+| `default:model/simplified_handheld` | `path` | Handheld, path as both model and texture |
+| `default:model/elytra` | `model`, `broken_model`, `texture`, `broken_texture` | Elytra with broken state |
+| `default:model/armor_trim` | `texture` | Armor item with trim support for all vanilla trim materials |
+
+## Event templates
+
+`events.yml` provides reusable event handlers for rotating furniture and blocks:
+
+```yaml
+events:
+  - template: default:rotatable_furniture_8
+```
+
+`default:rotatable_furniture_8` fires on right-click while the player is sneaking and empty-handed, cycling through 45° rotation steps. `default:rotatable_furniture_4` does the same in 90° steps. Both accept an optional `rotate_sound` argument:
+
+```yaml
+events:
+  - template: default:rotatable_furniture_8
+    arguments:
+      rotate_sound: 'minecraft:block.stone.place'
+```
+
+`default:rotatable_block` works the same way for custom blocks with a `facing` property.
+
+## Tool level templates
+
+`tool_levels.yml` defines which pickaxes count as each harvest level:
+
+```yaml
+correct-tools:
+  template: default:pickaxe_power/level_1
+```
+
+| Template | Accepted pickaxes |
+| --- | --- |
+| `default:pickaxe_power/level_1` | Wooden, stone, iron, golden, diamond, netherite |
+| `default:pickaxe_power/level_2` | Stone, iron, golden, diamond, netherite |
+| `default:pickaxe_power/level_3` | Iron, golden, diamond, netherite |
+| `default:pickaxe_power/level_4` | Diamond, netherite only |
+
+## Defining your own templates
+
+You can define templates anywhere in your configuration files. Put the `templates:` section at the top level of any YAML file:
+
+```yaml
+templates:
+  mypack:stone_block_settings:
+    template:
+      - default:sound/stone
+      - default:settings/solid_1x1x1
+    overrides:
+      hardness: 2.0
+      resistance: 6.0
+      instrument: basedrum
+      tags: ["minecraft:mineable/pickaxe"]
+      correct-tools:
+        template: default:pickaxe_power/level_1
+
+items:
+  mypack:granite_tile:
+    data:
+      item-name: Granite Tile
+    model: minecraft:block/custom/granite_tile
+    behavior:
+      type: block_item
+      block:
+        loot:
+          template: default:loot_table/self
+        settings:
+          template: mypack:stone_block_settings
+        states:
+          # ... state definitions
+```
+
+<Tip>
+Templates are resolved across all configuration files at load time, so you can define a template in one file and reference it from any other file in your content pack.
+</Tip>

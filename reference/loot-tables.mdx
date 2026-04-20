@@ -1,0 +1,357 @@
+---
+title: 'Loot table configuration reference'
+description: 'Reference for CraftEngine loot table definitions, template usage, and the supported loot conditions and functions for custom block and furniture drops.'
+---
+
+Loot tables in CraftEngine define what items drop when a custom block is broken or a furniture entity is destroyed. You can write a loot table inline inside a block definition or reference a pre-built template that accepts arguments. CraftEngine ships with several built-in templates covering the most common drop patterns — simple item drops, silk-touch drops, ore drops, leaves, crops, slabs, and doors.
+
+## Inline vs template loot tables
+
+**Inline** — write the full pool definition directly in the block's `loot:` section:
+
+```yaml
+loot:
+  pools:
+    - rolls: 1
+      conditions:
+        - type: survives_explosion
+      entries:
+        - type: item
+          item: default:my_item
+```
+
+**Template reference** — provide a `template` key pointing to a named template, plus an `arguments` map to fill in any placeholders:
+
+```yaml
+loot:
+  template: default:loot_table/basic
+  arguments:
+    item: default:amethyst_torch
+```
+
+<Note>
+  Template arguments use a `${argument_name}` substitution syntax inside the template definition.
+  You can provide a default value with `${argument:-default}`. For example, `${count:-1}` defaults
+  `count` to `1` if you do not pass it.
+</Note>
+
+## Built-in loot table templates
+
+The templates below are all declared in `resources/default/configuration/templates/loot_tables.yml`.
+
+<AccordionGroup>
+
+  <Accordion title="default:loot_table/self">
+    Drops the block itself. Uses the special `${__NAMESPACE__}` and `${__ID__}` placeholders that
+    expand to the block's own namespace and ID automatically — no arguments required.
+
+    The drop is subject to explosion survival: if an explosion destroys the block the item may not
+    drop.
+
+    **Arguments:** none
+
+    **Usage**
+
+    ```yaml
+    loot:
+      template: default:loot_table/self
+    ```
+
+    **Template source**
+
+    ```yaml
+    default:loot_table/self:
+      pools:
+        - rolls: 1
+          conditions:
+            - type: survives_explosion
+          entries:
+            - type: item
+              item: ${__NAMESPACE__}:${__ID__}
+    ```
+  </Accordion>
+
+  <Accordion title="default:loot_table/basic">
+    Drops a configurable item with a configurable count. The drop is subject to explosion survival.
+
+    **Arguments**
+
+    | Argument | Required | Default | Description |
+    |---|---|---|---|
+    | `item` | yes | — | The namespaced ID of the item to drop. |
+    | `count` | no | `1` | How many items to drop. |
+
+    **Usage**
+
+    ```yaml
+    loot:
+      template: default:loot_table/basic
+      arguments:
+        item: default:amethyst_torch
+    ```
+
+    ```yaml
+    loot:
+      template: default:loot_table/basic
+      arguments:
+        item: default:my_gem
+        count: 2
+    ```
+
+    **Template source**
+
+    ```yaml
+    default:loot_table/basic:
+      pools:
+        - rolls: 1
+          conditions:
+            - type: survives_explosion
+          entries:
+            - type: item
+              item: ${item}
+              functions:
+                - type: set_count
+                  add: false
+                  count: ${count:-1}
+    ```
+  </Accordion>
+
+  <Accordion title="default:loot_table/furniture">
+    Drops a furniture item when a furniture entity is destroyed. Uses the special `furniture_item`
+    entry type, which returns the original item that was used to place the furniture when available,
+    falling back to the configured `item` argument.
+
+    **Arguments**
+
+    | Argument | Required | Description |
+    |---|---|---|
+    | `item` | yes | The fallback item to drop if the original placement item is unavailable. |
+
+    **Usage**
+
+    ```yaml
+    loot:
+      template: default:loot_table/furniture
+      arguments:
+        item: default:wooden_chair
+    ```
+
+    **Template source**
+
+    ```yaml
+    default:loot_table/furniture:
+      pools:
+        - rolls: 1
+          entries:
+            - type: furniture_item
+              item: ${item}
+    ```
+  </Accordion>
+
+  <Accordion title="default:loot_table/silk_touch">
+    Drops an item only when the breaking tool has the Silk Touch enchantment. Nothing drops
+    without Silk Touch.
+
+    **Arguments**
+
+    | Argument | Required | Default | Description |
+    |---|---|---|---|
+    | `item` | yes | — | The item to drop when Silk Touch is used. |
+    | `count` | no | `1` | How many items to drop. |
+
+    **Usage**
+
+    ```yaml
+    loot:
+      template: default:loot_table/silk_touch
+      arguments:
+        item: default:my_ore_block
+    ```
+
+    **Template source**
+
+    ```yaml
+    default:loot_table/silk_touch:
+      pools:
+        - rolls: 1
+          conditions:
+            - type: enchantment
+              predicate: minecraft:silk_touch>=1
+          entries:
+            - type: item
+              item: ${item}
+              functions:
+                - type: set_count
+                  add: false
+                  count: ${count:-1}
+    ```
+  </Accordion>
+
+  <Accordion title="default:loot_table/ore">
+    Replicates vanilla ore drop behaviour: Silk Touch drops the ore block itself; Fortune
+    increases the number of material drops; explosions may reduce drops.
+
+    **Arguments**
+
+    | Argument | Required | Default | Description |
+    |---|---|---|---|
+    | `ore_block` | yes | — | The ore block item (dropped with Silk Touch). |
+    | `ore_drop` | yes | — | The material item dropped without Silk Touch. |
+    | `ore_drop_count` | no | `1` | Base count of material drops. |
+
+    **Usage**
+
+    ```yaml
+    loot:
+      template: default:loot_table/ore
+      arguments:
+        ore_block: default:my_ore
+        ore_drop: default:my_gem
+        ore_drop_count: 2
+    ```
+  </Accordion>
+
+  <Accordion title="default:loot_table/door">
+    Drops the door item only from the lower half of the door block, preventing duplication when
+    both halves would otherwise each trigger a drop.
+
+    **Arguments:** none (uses `${__NAMESPACE__}:${__ID__}` automatically)
+
+    **Usage**
+
+    ```yaml
+    loot:
+      template: default:loot_table/door
+    ```
+  </Accordion>
+
+  <Accordion title="default:loot_table/slab">
+    Drops one item normally, but drops two items when the slab is in its `double` state (two
+    slabs stacked). Drop count is subject to explosion decay.
+
+    **Arguments:** none (uses `${__NAMESPACE__}:${__ID__}` automatically)
+
+    **Usage**
+
+    ```yaml
+    loot:
+      template: default:loot_table/slab
+    ```
+  </Accordion>
+
+  <Accordion title="default:loot_table/seed_crop">
+    Models a seed-based crop (like wheat): drops the mature crop item when fully grown, otherwise
+    drops one seed. Fortune increases the bonus seed drop count at maturity.
+
+    **Arguments**
+
+    | Argument | Required | Default | Description |
+    |---|---|---|---|
+    | `crop_item` | yes | — | The item dropped when the crop is at `ripe_age`. |
+    | `crop_item_count` | no | `1` | Number of crop items to drop at maturity. |
+    | `crop_seed` | yes | — | The seed item, always dropped as a fallback. |
+    | `extra_seed_count` | no | `3` | Bonus seeds added by Fortune at maturity. |
+    | `ripe_age` | yes | — | The `age` property value that represents a fully grown crop. |
+
+    **Usage**
+
+    ```yaml
+    loot:
+      template: default:loot_table/seed_crop
+      arguments:
+        crop_item: default:my_grain
+        crop_seed: default:my_seed
+        ripe_age: 7
+    ```
+  </Accordion>
+
+  <Accordion title="default:loot_table/crop">
+    Models a self-seeding crop (like carrots): always drops one crop item, plus bonus items
+    scaled by Fortune when fully grown.
+
+    **Arguments**
+
+    | Argument | Required | Default | Description |
+    |---|---|---|---|
+    | `crop_item` | yes | — | The crop item (dropped at any age and used as the bonus drop). |
+    | `extra_crop_count` | no | `3` | Bonus crop items added by Fortune at maturity. |
+    | `ripe_age` | yes | — | The `age` property value that represents a fully grown crop. |
+
+    **Usage**
+
+    ```yaml
+    loot:
+      template: default:loot_table/crop
+      arguments:
+        crop_item: default:my_vegetable
+        ripe_age: 7
+    ```
+  </Accordion>
+
+  <Accordion title="default:loot_table/leaves">
+    Replicates vanilla leaves drop behaviour: Silk Touch or shears drop the leaf block; Fortune
+    increases sapling and stick drop rates; sticks drop from unsheared, non-silk-touched leaves.
+
+    **Arguments**
+
+    | Argument | Required | Description |
+    |---|---|---|
+    | `leaves` | yes | The leaf block item (dropped with Silk Touch or shears). |
+    | `sapling` | yes | The sapling item, with Fortune-weighted drop chances. |
+
+    **Usage**
+
+    ```yaml
+    loot:
+      template: default:loot_table/leaves
+      arguments:
+        leaves: default:my_leaves
+        sapling: default:my_sapling
+    ```
+  </Accordion>
+
+</AccordionGroup>
+
+## Loot conditions reference
+
+Conditions control whether a pool or entry fires. The following condition types appear in the built-in templates.
+
+| Type | Description |
+|---|---|
+| `survives_explosion` | The entry only fires if the block was not destroyed by an explosion, or if the explosion's random roll allows it. |
+| `enchantment` | Tests the breaking tool for a specific enchantment. Use `predicate: minecraft:silk_touch>=1` to require Silk Touch level 1 or higher. |
+| `match_block_property` | Tests a property of the broken block state (e.g. `half: lower` for doors, `type: double` for slabs, `age: 7` for crops). |
+| `any_of` | A logical OR over a list of child conditions (`terms`). |
+| `inverted` | Negates a single child condition (`term`). |
+| `match_item` | Tests whether the breaking tool matches a specific item ID (e.g. `minecraft:shears`). |
+| `table_bonus` | Applies Fortune-weighted chances from a list. Requires an `enchantment` and a `chances` list indexed by Fortune level. |
+
+## Loot functions reference
+
+Functions modify the entries that fire. The following function types appear in the built-in templates.
+
+| Type | Description |
+|---|---|
+| `set_count` | Sets the item count. `add: false` replaces the count; `add: true` adds to it. The `count` field accepts a plain integer or a `uniform` distribution object (`{type: uniform, min: N, max: M}`). |
+| `apply_bonus` | Multiplies the drop count using a Fortune formula. Supports `ore_drops` (vanilla ore formula) and `binomial_with_bonus_count` (crop formula). |
+| `explosion_decay` | Randomly removes items from the drop when the block is destroyed by an explosion. |
+
+## Tool level templates
+
+CraftEngine ships with pickaxe-tier templates that you can reference from a block's `correct-tools` setting.
+
+| Template | Tools included |
+|---|---|
+| `default:pickaxe_power/level_1` | Wooden, stone, iron, golden, diamond, netherite pickaxes |
+| `default:pickaxe_power/level_2` | Stone, iron, golden, diamond, netherite pickaxes |
+| `default:pickaxe_power/level_3` | Iron, golden, diamond, netherite pickaxes |
+| `default:pickaxe_power/level_4` | Diamond and netherite pickaxes only |
+
+**Usage**
+
+```yaml
+settings:
+  overrides:
+    correct-tools:
+      template: default:pickaxe_power/level_1
+```

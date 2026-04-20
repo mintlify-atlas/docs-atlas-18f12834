@@ -1,0 +1,361 @@
+---
+title: "Create placeable furniture with hitboxes and seats"
+description: "Design multi-element furniture in CraftEngine using display entities, interaction hitboxes, seats, rotation rules, and loot tables."
+---
+
+Furniture in CraftEngine is placed in the world as a collection of display entities with optional interaction hitboxes and seats. Unlike custom blocks, furniture does not consume vanilla block states — instead it uses entity-based rendering, making it suitable for multi-block or decorative objects that need precise visual positioning. Everything about a furniture piece lives inside a single item definition with the `furniture_item` behavior.
+
+## How furniture items work
+
+A furniture item triggers placement logic when right-clicked. The placement rules determine what surfaces the item can be placed on and how it aligns. The `furniture:` block then describes the visual elements, collision hitboxes, seats, events, sounds, and loot that appear once the furniture is placed.
+
+```yaml
+items:
+  default:wooden_chair:
+    data:
+      item-name: <!i><lang:item.default.wooden_chair>
+    model: minecraft:item/custom/wooden_chair
+    behavior:
+      type: furniture_item
+      rules:
+        ground:
+          rotation: any
+          alignment: any
+      furniture:
+        # ... furniture definition
+```
+
+## Placement rules
+
+The `rules:` map specifies where furniture can be placed. Keys are surface types (`ground`, `wall`, `ceiling`). Each surface accepts:
+
+- `rotation` — `any` for free 45°-step rotation, `four` for 90° steps, or `none`
+- `alignment` — `any` for free positioning, `center` to snap to block center
+
+```yaml
+rules:
+  ground:
+    rotation: four
+    alignment: center
+```
+
+<Note>
+`rotation: any` produces 8-step (45°) rotation using the `default:rotatable_furniture_8` event template. `rotation: four` produces 4-step (90°) rotation using `default:rotatable_furniture_4`.
+</Note>
+
+## Furniture variants
+
+Each surface type listed in `rules:` needs a matching entry under `variants:`. The variant holds the visual elements, hitboxes, and loot spawn offset for that placement context.
+
+```yaml
+furniture:
+  settings:
+    item: default:wooden_chair
+    hit-times: 3
+    sounds:
+      break: minecraft:block.bamboo_wood.break
+      place: minecraft:block.bamboo_wood.place
+      hit: minecraft:block.bamboo_wood.hit
+  variants:
+    ground:
+      loot-spawn-offset: 0,0.4,0
+      elements:
+        - ...
+      hitboxes:
+        - ...
+```
+
+## Elements
+
+Elements are the display entity components that make up the furniture's visual appearance. Each element is an item display with positioning and rendering options:
+
+| Key | Description |
+| --- | --- |
+| `item` | The CraftEngine item ID to display |
+| `display-transform` | Transform preset: `NONE`, `GROUND`, `FIXED`, `THIRDPERSON_RIGHTHAND`, etc. |
+| `billboard` | Camera-tracking mode: `FIXED`, `VERTICAL`, `HORIZONTAL`, `CENTER` |
+| `translation` | `x,y,z` offset from the furniture origin |
+| `position` | `x,y,z` world-space offset from the anchor block |
+| `shadow-radius` | Drop shadow radius |
+| `shadow-strength` | Drop shadow opacity (0.0–1.0) |
+
+For the wooden chair, a single element renders the chair model centered above the floor:
+
+```yaml
+elements:
+  - item: default:wooden_chair
+    display-transform: NONE
+    shadow-radius: 0.4
+    shadow-strength: 0.5
+    billboard: FIXED
+    translation: 0,0.5,0
+```
+
+For multi-element furniture like the globe, each component is its own element with its own position and type:
+
+```yaml
+elements:
+  - type: item
+    item: default:globe_earth
+    position: 0,0.4,0
+  - type: item_display
+    item: default:globe_base
+    position: 0,0.5,0
+```
+
+## Hitboxes
+
+Hitboxes define the collision and interaction areas around the furniture. Each hitbox specifies a position, type, size, and interaction options.
+
+| Key | Description |
+| --- | --- |
+| `position` | `x,y,z` offset from the furniture anchor |
+| `type` | `interaction` for a lightweight interaction entity, `shulker` for a shulker-box-shaped entity |
+| `width` | Hitbox width (interaction type) |
+| `height` | Hitbox height (interaction type) |
+| `blocks-building` | Prevent placing blocks inside the hitbox |
+| `invisible` | Hide the hitbox entity from the client |
+| `interactive` | Whether right-clicking the hitbox triggers furniture events |
+| `interaction-entity` | Use an interaction entity for click detection (shulker type) |
+| `seats` | List of seat positions |
+
+### Interaction hitbox (wooden chair)
+
+```yaml
+hitboxes:
+  - position: 0,0,0
+    type: interaction
+    blocks-building: true
+    invisible: true
+    width: 0.7
+    height: 1.2
+    interactive: true
+    seats:
+      - 0,0,-0.1 0
+```
+
+### Shulker hitbox (bench)
+
+The bench uses a `shulker` hitbox with `direction: east` and `peek: 100` to fill a full block-width horizontal area:
+
+```yaml
+hitboxes:
+  - position: 0,0,0
+    type: shulker
+    direction: east
+    peek: 100
+    blocks-building: true
+    interactive: true
+    interaction-entity: true
+    seats:
+      - 0,0,-0.1 0
+      - 1,0,-0.1 0
+```
+
+## Seats
+
+Each entry under `seats:` is a string in the format `x,y,z yaw-offset`. Players sit at the given position relative to the furniture origin, facing the given yaw offset in degrees:
+
+```yaml
+seats:
+  - 0,0,-0.1 0      # single seat at center, facing default direction
+  - 1,0,-0.1 0      # second seat offset 1 block east
+```
+
+## Events
+
+Events trigger actions when players interact with furniture. Add event templates using the `events:` list inside `furniture:`:
+
+```yaml
+furniture:
+  events:
+    - template: default:rotatable_furniture_8
+```
+
+`default:rotatable_furniture_8` rotates the furniture in 45° increments when a sneaking player right-clicks while empty-handed. `default:rotatable_furniture_4` does the same in 90° increments. Both accept an optional `rotate_sound` argument.
+
+## Loot table
+
+When furniture is broken, its loot table determines what drops. Use the `default:loot_table/furniture` template and pass the fallback item:
+
+```yaml
+loot:
+  template: default:loot_table/furniture
+  arguments:
+    item: default:wooden_chair
+```
+
+This template attempts to drop the original furniture item that was placed. If that item cannot be determined, it falls back to the specified `item`.
+
+## Step-by-step: create a simple chair
+
+<Steps>
+  <Step title="Create the item definition">
+    Open a new file in your configuration folder (e.g., `furniture/my_chair.yml`). Define the item with a `furniture_item` behavior and ground placement rules:
+
+    ```yaml
+    items:
+      default:my_chair:
+        data:
+          item-name: <!i>My Chair
+        model: minecraft:item/custom/my_chair
+        behavior:
+          type: furniture_item
+          rules:
+            ground:
+              rotation: any
+              alignment: any
+    ```
+  </Step>
+  <Step title="Add the furniture definition">
+    Inside the `behavior:` block, add the `furniture:` section with settings, variant, and loot:
+
+    ```yaml
+          furniture:
+            events:
+              - template: default:rotatable_furniture_8
+            settings:
+              item: default:my_chair
+              hit-times: 3
+              sounds:
+                break: minecraft:block.bamboo_wood.break
+                place: minecraft:block.bamboo_wood.place
+                hit: minecraft:block.bamboo_wood.hit
+            variants:
+              ground:
+                loot-spawn-offset: 0,0.4,0
+                elements:
+                  - item: default:my_chair
+                    display-transform: NONE
+                    shadow-radius: 0.4
+                    shadow-strength: 0.5
+                    billboard: FIXED
+                    translation: 0,0.5,0
+                hitboxes:
+                  - position: 0,0,0
+                    type: interaction
+                    blocks-building: true
+                    invisible: true
+                    width: 0.7
+                    height: 1.2
+                    interactive: true
+                    seats:
+                      - 0,0,-0.1 0
+            loot:
+              template: default:loot_table/furniture
+              arguments:
+                item: default:my_chair
+    ```
+  </Step>
+  <Step title="Place your model texture">
+    Add the model file and texture to your resource pack under `assets/minecraft/models/item/custom/my_chair.json` (or let CraftEngine generate it via a `generation:` block in the item's `model:` field).
+  </Step>
+  <Step title="Reload and test">
+    Run `/ce reload` to apply the configuration. Give yourself the item with `/ce give default:my_chair` and place it in the world. Right-click while sneaking to rotate it; right-click normally to sit.
+  </Step>
+</Steps>
+
+## Full examples
+
+<Tabs>
+  <Tab title="Wooden chair">
+```yaml
+items:
+  default:wooden_chair:
+    data:
+      item-name: <!i><lang:item.default.wooden_chair>
+    model: minecraft:item/custom/wooden_chair
+    behavior:
+      type: furniture_item
+      rules:
+        ground:
+          rotation: any
+          alignment: any
+      furniture:
+        events:
+          - template: default:rotatable_furniture_8
+        settings:
+          item: default:wooden_chair
+          hit-times: 3
+          sounds:
+            break: minecraft:block.bamboo_wood.break
+            place: minecraft:block.bamboo_wood.place
+            hit: minecraft:block.bamboo_wood.hit
+        variants:
+          ground:
+            loot-spawn-offset: 0,0.4,0
+            elements:
+              - item: default:wooden_chair
+                display-transform: NONE
+                shadow-radius: 0.4
+                shadow-strength: 0.5
+                billboard: FIXED
+                translation: 0,0.5,0
+            hitboxes:
+              - position: 0,0,0
+                type: interaction
+                blocks-building: true
+                invisible: true
+                width: 0.7
+                height: 1.2
+                interactive: true
+                seats:
+                  - 0,0,-0.1 0
+        loot:
+          template: default:loot_table/furniture
+          arguments:
+            item: default:wooden_chair
+```
+  </Tab>
+  <Tab title="Bench (two seats)">
+```yaml
+items:
+  default:bench:
+    data:
+      item-name: <!i><lang:item.default.bench>
+    model: minecraft:item/custom/bench
+    behavior:
+      type: furniture_item
+      rules:
+        ground:
+          rotation: four
+          alignment: center
+      furniture:
+        events:
+          - template: default:rotatable_furniture_4
+        settings:
+          item: default:bench
+          hit-times: 3
+          sounds:
+            break: minecraft:block.bamboo_wood.break
+            place: minecraft:block.bamboo_wood.place
+            hit: minecraft:block.bamboo_wood.hit
+        variants:
+          ground:
+            loot-spawn-offset: 0.5,0.5,0
+            elements:
+              - item: default:bench
+                display-transform: none
+                billboard: fixed
+                position: 0.5,0,0
+                translation: 0,0.5,0
+                shadow-radius: 1
+                shadow-strength: 0.2
+            hitboxes:
+              - position: 0,0,0
+                type: shulker
+                direction: east
+                peek: 100
+                blocks-building: true
+                interactive: true
+                interaction-entity: true
+                seats:
+                  - 0,0,-0.1 0
+                  - 1,0,-0.1 0
+        loot:
+          template: default:loot_table/furniture
+          arguments:
+            item: default:bench
+```
+  </Tab>
+</Tabs>

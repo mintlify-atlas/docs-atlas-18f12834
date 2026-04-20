@@ -1,0 +1,245 @@
+---
+title: 'Item behavior types reference'
+description: 'Reference for all CraftEngine item behavior types — block items, furniture items, and special tools — with YAML configuration examples.'
+---
+
+Item behaviors determine what happens when a player uses a custom item: placing a block, placing furniture, or performing a special mining action. You attach behaviors to an item by adding a `behavior` key (or a list of behaviors) under the item's definition. When a list is used, CraftEngine tries each behavior in order until one succeeds.
+
+```yaml
+items:
+  default:my_item:
+    behavior:
+      - type: block_item
+        block: default:my_block
+```
+
+The sections below describe every item behavior type found in the default configuration files.
+
+<AccordionGroup>
+
+  <Accordion title="block_item">
+    Places a named custom block when the player right-clicks a surface. This is the standard
+    behavior for any item that acts as a placeable block.
+
+    **Properties**
+
+    | Property | Type | Description |
+    |---|---|---|
+    | `block` | string or map | The namespaced ID of the custom block to place (e.g. `default:amethyst_torch`). You can also provide an inline block definition instead of a string ID. |
+
+    **Example — amethyst torch placed on the floor**
+
+    ```yaml
+    behavior:
+      - type: block_item
+        block: default:amethyst_torch
+    ```
+
+    **Example — inline block definition**
+
+    You can embed the full block definition directly inside the item behavior instead of
+    declaring a separate block entry. This is useful for simple blocks that do not need to
+    be referenced elsewhere.
+
+    ```yaml
+    items:
+      default:copper_coil:
+        behavior:
+          type: block_item
+          block:
+            loot:
+              template: default:loot_table/self
+            settings:
+              template:
+                - default:sound/metal
+              overrides:
+                hardness: 3.0
+                resistance: 4.5
+                replaceable: false
+            behavior:
+              type: lamp_block
+            states:
+              properties:
+                lit:
+                  type: boolean
+                  default: false
+    ```
+  </Accordion>
+
+  <Accordion title="wall_block_item">
+    Places a named custom block specifically on a wall face (i.e. the side of a block rather than
+    the top or bottom). When the player clicks a horizontal face the block is placed; clicking the
+    floor or ceiling falls through to the next behavior in the list.
+
+    **Properties**
+
+    | Property | Type | Description |
+    |---|---|---|
+    | `block` | string | The namespaced ID of the wall-variant custom block to place. |
+
+    **Example — amethyst torch placed on a wall**
+
+    In the amethyst torch item the `wall_block_item` is listed first so that clicking a wall
+    places the wall variant, while clicking the floor falls through to the `block_item` entry.
+
+    ```yaml
+    behavior:
+      - type: wall_block_item
+        block: default:amethyst_wall_torch
+      - type: block_item
+        block: default:amethyst_torch
+      - type: block_item
+        block: default:amethyst_wall_torch
+    ```
+  </Accordion>
+
+  <Accordion title="furniture_item">
+    Places a furniture entity when the player right-clicks a surface. You define placement rules
+    for each surface type (`ground`, `wall`, `ceiling`), controlling which rotations and grid
+    alignments are allowed.
+
+    **Properties**
+
+    | Property | Type | Description |
+    |---|---|---|
+    | `rules` | map | Keys are surface types (`ground`, `wall`, `ceiling`). Each value configures placement for that surface. |
+    | `rules.<surface>.rotation` | string | Which rotations are allowed on this surface. Valid values: `any`, `four`, `eight`. |
+    | `rules.<surface>.alignment` | string | Grid alignment on this surface. Valid values: `any`, `center`. |
+    | `furniture` | map | The inline furniture definition (settings, variants, loot, events). |
+
+    **Rotation values**
+
+    | Value | Description |
+    |---|---|
+    | `any` | The furniture snaps to the player's exact facing direction (8-directional or freeform). |
+    | `four` | The furniture snaps to the four cardinal directions (N/E/S/W). |
+    | `eight` | The furniture snaps to the eight compass directions (N/NE/E/SE/S/SW/W/NW). |
+
+    **Alignment values**
+
+    | Value | Description |
+    |---|---|
+    | `any` | The furniture can be placed at any position within the block grid. |
+    | `center` | The furniture is always centred on the block it is placed on. |
+
+    **Example — wooden chair (any rotation, any alignment)**
+
+    ```yaml
+    behavior:
+      type: furniture_item
+      rules:
+        ground:
+          rotation: any
+          alignment: any
+      furniture:
+        events:
+          - template: default:rotatable_furniture_8
+        settings:
+          item: default:wooden_chair
+          hit-times: 3
+          sounds:
+            break: minecraft:block.bamboo_wood.break
+            place: minecraft:block.bamboo_wood.place
+            hit: minecraft:block.bamboo_wood.hit
+        variants:
+          ground:
+            loot-spawn-offset: 0,0.4,0
+            elements:
+              - item: default:wooden_chair
+                display-transform: NONE
+                shadow-radius: 0.4
+                shadow-strength: 0.5
+                billboard: FIXED
+                translation: 0,0.5,0
+            hitboxes:
+              - position: 0,0,0
+                type: interaction
+                blocks-building: true
+                invisible: true
+                width: 0.7
+                height: 1.2
+                interactive: true
+                seats:
+                  - 0,0,-0.1 0
+        loot:
+          template: default:loot_table/furniture
+          arguments:
+            item: default:wooden_chair
+    ```
+
+    **Example — bench (four rotations, center alignment)**
+
+    ```yaml
+    behavior:
+      type: furniture_item
+      rules:
+        ground:
+          rotation: four
+          alignment: center
+      furniture:
+        events:
+          - template: default:rotatable_furniture_4
+        settings:
+          item: default:bench
+          hit-times: 3
+        variants:
+          ground:
+            loot-spawn-offset: 0.5,0.5,0
+            elements:
+              - item: default:bench
+                display-transform: none
+                billboard: fixed
+                position: 0.5,0,0
+                translation: 0,0.5,0
+            hitboxes:
+              - position: 0,0,0
+                type: shulker
+                direction: east
+                peek: 100
+                blocks-building: true
+                interactive: true
+                seats:
+                  - 0,0,-0.1 0
+                  - 1,0,-0.1 0
+        loot:
+          template: default:loot_table/furniture
+          arguments:
+            item: default:bench
+    ```
+  </Accordion>
+
+  <Accordion title="range_mining_item">
+    Mines additional blocks beyond the one the player directly breaks. Each entry in the `range`
+    list is an `x,y,z` offset from the targeted block; all matching blocks of the same type are
+    broken simultaneously.
+
+    **Properties**
+
+    | Property | Type | Description |
+    |---|---|---|
+    | `range` | list of strings | Each entry is an `x,y,z` offset from the targeted block to also break. |
+
+    **Example — drill that mines two blocks deep**
+
+    ```yaml
+    items:
+      default:drill:
+        material: stone_pickaxe
+        behavior:
+          - type: range_mining_item
+            range:
+              - 0,0,1
+              - 0,0,2
+    ```
+
+    With this configuration, breaking any block with the drill also breaks the block one and
+    two positions in front of it (positive Z), effectively tunneling three blocks at once.
+  </Accordion>
+
+</AccordionGroup>
+
+<Tip>
+  When you attach multiple behaviors to a single item, list `wall_block_item` before `block_item`
+  so that the wall-placement check runs first. If it does not match (e.g. the player clicked the
+  floor), CraftEngine falls through to the next behavior automatically.
+</Tip>

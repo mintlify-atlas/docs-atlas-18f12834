@@ -1,0 +1,409 @@
+---
+title: "Create custom blocks with textures and behaviors"
+description: "Learn how to define custom blocks in CraftEngine YAML config files, assign vanilla block states, add loot tables, and configure block behaviors."
+---
+
+Custom blocks in CraftEngine are defined in YAML configuration files that live in your plugin's configuration folder. Each file can contain items, blocks, and recipes together, letting you group related content in one place. CraftEngine maps your custom blocks onto unused vanilla block states, so the client renders them with a custom resource pack while the server tracks them as real blocks.
+
+## File structure
+
+A block config file has three top-level sections: `items:`, `blocks:`, and `recipes:`. The `items:` section defines the inventory items players hold and place, the `blocks:` section defines the in-world block behavior and appearance, and `recipes:` defines how those items are crafted.
+
+```yaml
+items:
+  default:my_block:
+    data:
+      item-name: My Block
+    texture: minecraft:block/custom/my_block
+    behavior:
+      - type: block_item
+        block: default:my_block
+
+blocks:
+  default:my_block:
+    loot:
+      template: default:loot_table/basic
+      arguments:
+        item: default:my_block
+    settings:
+      hardness: 1.5
+      resistance: 1.5
+    state:
+      state: redstone_torch[lit=false]
+```
+
+<Note>
+Block IDs use a `namespace:id` format. The `default` namespace is reserved for the built-in example pack. Use your own namespace for production content.
+</Note>
+
+## Mapping to vanilla block states
+
+CraftEngine repurposes vanilla block states that are never used in normal gameplay to represent custom blocks. You assign the specific state under the `state:` key in your block definition:
+
+```yaml
+state:
+  state: redstone_torch[lit=false]
+```
+
+For directional blocks, you define multiple appearances — one per facing direction — and map each property value to an appearance:
+
+```yaml
+states:
+  properties:
+    facing:
+      type: horizontal_direction
+  appearances:
+    north:
+      state: redstone_wall_torch[facing=north,lit=false]
+    east:
+      state: redstone_wall_torch[facing=east,lit=false]
+    west:
+      state: redstone_wall_torch[facing=west,lit=false]
+    south:
+      state: redstone_wall_torch[facing=south,lit=false]
+  variants:
+    facing=north:
+      appearance: north
+    facing=east:
+      appearance: east
+    facing=west:
+      appearance: west
+    facing=south:
+      appearance: south
+```
+
+For boolean state blocks like a toggleable lamp, set the property type to `boolean`:
+
+```yaml
+states:
+  properties:
+    lit:
+      type: boolean
+      default: false
+  appearances:
+    off:
+      auto-state: cactus
+      model:
+        path: minecraft:block/custom/copper_coil
+        generation:
+          parent: minecraft:block/cactus
+          textures:
+            particle: minecraft:block/custom/copper_coil
+            bottom: minecraft:block/custom/copper_coil
+            top: minecraft:block/custom/copper_coil
+            side: minecraft:block/custom/copper_coil_side
+    on:
+      auto-state: cactus
+      model:
+        path: minecraft:block/custom/copper_coil_on
+        generation:
+          parent: minecraft:block/cactus
+          textures:
+            particle: minecraft:block/custom/copper_coil_on
+            bottom: minecraft:block/custom/copper_coil_on
+            top: minecraft:block/custom/copper_coil_on
+            side: minecraft:block/custom/copper_coil_on_side
+  variants:
+    lit=false:
+      appearance: 'off'
+    lit=true:
+      appearance: 'on'
+      settings:
+        luminance: 8
+```
+
+## Block settings
+
+The `settings:` section controls physical properties of the block. You can apply predefined templates and then override individual values:
+
+```yaml
+settings:
+  template:
+    - default:sound/wood
+    - default:hardness/none
+  overrides:
+    push-reaction: destroy
+    replaceable: false
+    map-color: 24
+    luminance: 15
+    item: default:amethyst_torch
+```
+
+| Key | Description |
+| --- | --- |
+| `hardness` | Time to break the block |
+| `resistance` | Explosion resistance |
+| `push-reaction` | Piston behavior: `push_only`, `destroy`, `block` |
+| `map-color` | Integer index of the color on maps |
+| `luminance` | Light level emitted (0–15) |
+| `replaceable` | Whether the block can be replaced by placing another block |
+| `is-suffocating` | Whether entities inside the block suffocate |
+| `is-redstone-conductor` | Whether the block conducts redstone |
+| `instrument` | Note block instrument played above this block |
+| `tags` | List of Minecraft block tags (e.g. `minecraft:mineable/pickaxe`) |
+| `correct-tools` | List of items (or template) that can correctly break this block |
+
+### Sound templates
+
+Instead of specifying individual sound events, reference a built-in sound template:
+
+```yaml
+settings:
+  template:
+    - default:sound/wood
+```
+
+Available sound templates include `default:sound/wood`, `default:sound/stone`, `default:sound/metal`, `default:sound/grass`, `default:sound/deepslate`, `default:sound/glass`, `default:sound/sand`, `default:sound/gravel`, `default:sound/snow`, `default:sound/bamboo`, `default:sound/lantern`, and `default:sound/amethyst_block`.
+
+To set sounds manually without a template:
+
+```yaml
+settings:
+  sounds:
+    break: minecraft:block.stone.break
+    fall: minecraft:block.stone.fall
+    hit: minecraft:block.stone.hit
+    place: minecraft:block.stone.place
+    step: minecraft:block.stone.step
+```
+
+### Hardness templates
+
+Predefined hardness levels you can pull in via `template:`:
+
+| Template | `hardness` / `resistance` |
+| --- | --- |
+| `default:hardness/none` | 0 / 0 |
+| `default:hardness/glass` | 0.3 / 0.3 |
+| `default:hardness/leaves` | 0.2 / 0.2 |
+| `default:hardness/wool` | 0.8 / 0.8 |
+| `default:hardness/button` | 0.5 / 0.5 |
+| `default:hardness/wood` | 2.0 / 2.0 |
+| `default:hardness/planks` | 2.0 / 3.0 |
+| `default:hardness/stone` | 1.5 / 6.0 |
+| `default:hardness/deepslate` | 3.0 / 6.0 |
+| `default:hardness/obsidian` | 50.0 / 1200.0 |
+
+## Entity renderer
+
+For blocks that need a custom visual appearance (such as torches placed by display entities), specify an `entity-renderer:` inside each appearance. You can control the item displayed, its scale, yaw rotation, and translation offset:
+
+```yaml
+state:
+  state: redstone_torch[lit=false]
+  entity-renderer:
+    item: default:amethyst_standing_torch
+    scale: 1.01
+```
+
+For directional appearances:
+
+```yaml
+appearances:
+  north:
+    state: redstone_wall_torch[facing=north,lit=false]
+    entity-renderer:
+      item: default:amethyst_wall_torch
+      scale: 1.04
+      yaw: 90
+      translation: -0.02,0.01,0
+```
+
+## Block behaviors
+
+Behaviors control server-side logic. Specify one or more under the `behavior:` list key.
+
+| Behavior type | Effect |
+| --- | --- |
+| `sturdy_base_block` | Provides a solid attachment surface for blocks that need support below them |
+| `directional_attached_block` | Breaks the block when the block it is attached to is removed |
+| `liquid_flowable_block` | Allows liquids to flow through or destroy the block |
+| `simple_particle_block` | Spawns particles at fixed offsets on a configurable tick interval |
+| `wall_torch_particle_block` | Like `simple_particle_block` but offsets are adjusted by facing direction |
+| `lamp_block` | Toggles the `lit` state when powered by redstone |
+
+### Particle configuration
+
+Both `simple_particle_block` and `wall_torch_particle_block` accept a `particles:` list. Each entry specifies a particle type and an `x`/`y`/`z` position offset:
+
+```yaml
+behavior:
+  - type: simple_particle_block
+    tick-interval: 10
+    particles:
+      - particle: smoke
+        x: 0.5
+        y: 0.7
+        z: 0.5
+      - particle: dust
+        color: 138,43,226
+        x: 0.5
+        y: 0.7
+        z: 0.5
+```
+
+## Loot tables
+
+Blocks drop items based on a loot table. Use the built-in `default:loot_table/basic` template for simple one-item drops:
+
+```yaml
+loot:
+  template: default:loot_table/basic
+  arguments:
+    item: default:amethyst_torch
+```
+
+The `count` argument defaults to `1` if omitted. For blocks that should drop themselves, use `default:loot_table/self`, which requires no arguments.
+
+## Full example: amethyst torch
+
+The amethyst torch from the default pack demonstrates a two-block setup — a floor-standing variant and a wall-mounted variant — along with model generation, particle effects, and a shaped recipe.
+
+<Tabs>
+  <Tab title="Simple block">
+```yaml
+items:
+  default:amethyst_standing_torch:
+    data:
+      item-name: <!i><lang:item.default.amethyst_torch>
+    model:
+      type: minecraft:model
+      path: minecraft:block/custom/amethyst_torch
+      generation:
+        parent: minecraft:block/template_torch
+        textures:
+          torch: minecraft:block/custom/amethyst_torch
+
+blocks:
+  default:amethyst_torch:
+    loot:
+      template: default:loot_table/basic
+      arguments:
+        item: default:amethyst_torch
+    settings:
+      template:
+        - default:sound/wood
+        - default:hardness/none
+      overrides:
+        push-reaction: destroy
+        replaceable: false
+        map-color: 24
+        luminance: 15
+        item: default:amethyst_torch
+    state:
+      state: redstone_torch[lit=false]
+      entity-renderer:
+        item: default:amethyst_standing_torch
+        scale: 1.01
+    behavior:
+      - type: sturdy_base_block
+        direction: down
+        support-types:
+          - center
+      - type: liquid_flowable_block
+      - type: simple_particle_block
+        tick-interval: 10
+        particles:
+          - particle: smoke
+            x: 0.5
+            y: 0.7
+            z: 0.5
+          - particle: dust
+            color: 138,43,226
+            x: 0.5
+            y: 0.7
+            z: 0.5
+```
+  </Tab>
+  <Tab title="Directional (wall) variant">
+```yaml
+items:
+  default:amethyst_wall_torch:
+    data:
+      item-name: <!i><lang:item.default.amethyst_torch>
+    model:
+      type: minecraft:model
+      path: minecraft:block/custom/amethyst_wall_torch
+      generation:
+        parent: minecraft:block/template_torch_wall
+        textures:
+          torch: minecraft:block/custom/amethyst_torch
+
+blocks:
+  default:amethyst_wall_torch:
+    loot:
+      template: default:loot_table/basic
+      arguments:
+        item: default:amethyst_torch
+    settings:
+      template:
+        - default:sound/wood
+        - default:hardness/none
+      overrides:
+        push-reaction: destroy
+        replaceable: false
+        map-color: 24
+        luminance: 15
+        item: default:amethyst_torch
+    behavior:
+      - type: directional_attached_block
+      - type: liquid_flowable_block
+      - type: wall_torch_particle_block
+        particles:
+          - particle: smoke
+            x: 0.27
+            y: 0.42
+            z: 0.27
+          - particle: dust
+            color: 138,43,226
+            x: 0.27
+            y: 0.42
+            z: 0.27
+    states:
+      properties:
+        facing:
+          type: horizontal_direction
+      appearances:
+        north:
+          state: redstone_wall_torch[facing=north,lit=false]
+          entity-renderer:
+            item: default:amethyst_wall_torch
+            scale: 1.04
+            yaw: 90
+            translation: -0.02,0.01,0
+        east:
+          state: redstone_wall_torch[facing=east,lit=false]
+          entity-renderer:
+            item: default:amethyst_wall_torch
+            scale: 1.04
+            yaw: 180
+            translation: -0.02,0.01,0
+        west:
+          state: redstone_wall_torch[facing=west,lit=false]
+          entity-renderer:
+            item: default:amethyst_wall_torch
+            scale: 1.04
+            translation: -0.02,0.01,0
+        south:
+          state: redstone_wall_torch[facing=south,lit=false]
+          entity-renderer:
+            item: default:amethyst_wall_torch
+            scale: 1.04
+            yaw: -90
+            translation: -0.02,0.01,0
+      variants:
+        facing=north:
+          appearance: north
+        facing=east:
+          appearance: east
+        facing=west:
+          appearance: west
+        facing=south:
+          appearance: south
+```
+  </Tab>
+</Tabs>
+
+<Tip>
+You can place both `default:amethyst_torch` and `default:amethyst_wall_torch` block definitions in the same file alongside their item counterparts. CraftEngine resolves the `wall_block_item` behavior to automatically choose the wall variant when the player places the item against a wall.
+</Tip>

@@ -1,80 +1,258 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: "Get started with CraftEngine"
+description: "Create your first custom block in CraftEngine with a texture, recipe, and loot table — from config file to in-game in under 10 minutes."
 ---
 
-## Get started in three steps
+This guide takes you from a freshly installed CraftEngine to a working custom block in-game. You will configure the resource pack host so players can receive the pack, write a block configuration file based on the built-in `amethyst_torch` example, reload the plugin, and verify everything works with in-game commands.
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+- CraftEngine is installed and the server has started at least once (see [Installation](/installation)).
+- You have operator permissions or a permissions plugin granting `ce.command.admin.*`.
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+## Step 1 — Set up the resource pack host
 
-### Step 2: Deploy your changes
+<Steps>
+  <Step title="Open config.yml">
+    Open `plugins/CraftEngine/config.yml` and find the `resource-pack.delivery.hosting` section:
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    ```yaml
+    resource-pack:
+      delivery:
+        send-on-join: true
+        kick-if-declined: true
+        kick-if-failed-to-apply: false
+        prompt: "<yellow>To fully experience our server,<newline>please accept our custom resource pack.</yellow>"
+        auto-upload: true
+        resend-on-upload: true
+        file-to-upload: "./generated/resource_pack.zip"
+        hosting:
+          - type: "self"
+            ip: "localhost"
+            port: 8163
+            protocol: "http"
+            deny-non-minecraft-request: true
+            one-time-token: true
+            strict-validation: false
+            rate-limiting:
+              max-bandwidth-per-second: 5_000_000
+              min-download-speed-per-player: 50_000
+              qps-per-ip: 5/60
+    ```
+  </Step>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+  <Step title="Set the correct IP">
+    The default value for `ip` is `localhost`, which only works when you are connecting from the same machine as the server. For any external players, replace `localhost` with your server's public IP address or domain name:
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```yaml
+    hosting:
+      - type: "self"
+        ip: "your.server.ip"   # replace with your actual IP or hostname
+        port: 8163
+        protocol: "http"
+    ```
 
-### Step 3: Go live
+    <Tip>
+    For local testing (single-player or LAN), `localhost` is fine and requires no change.
+    </Tip>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    <Warning>
+    Make sure port `8163` (or whichever port you configure) is open in your firewall and forwarded if you are behind NAT.
+    </Warning>
+  </Step>
+
+  <Step title="Verify delivery settings">
+    The three most important delivery flags are:
+
+    | Key | Default | Effect |
+    |-----|---------|--------|
+    | `send-on-join` | `true` | Sends the resource pack to players automatically when they join |
+    | `kick-if-declined` | `true` | Kicks players who decline the resource pack prompt |
+    | `auto-upload` | `true` | Uploads the generated ZIP to the configured host automatically after generation |
+
+    Keep these at their defaults while getting started.
+  </Step>
+</Steps>
+
+## Step 2 — Create your first custom block
+
+CraftEngine organises content under `plugins/CraftEngine/resources/<pack-name>/configuration/`. The built-in `default` pack ships with `amethyst_torch.yml` as a complete reference. You can add your own pack or place files directly in `default/configuration/blocks/`.
+
+<Steps>
+  <Step title="Create a block configuration file">
+    Create a new file at:
+
+    ```
+    plugins/CraftEngine/resources/default/configuration/blocks/my_glowing_block.yml
+    ```
+
+    Below is a minimal block definition modelled after the `amethyst_torch` example. It registers one item and one block that emits light and drops itself:
+
+    ```yaml
+    items:
+      default:my_glowing_block:
+        data:
+          item-name: "<!i>My Glowing Block"
+        texture: minecraft:block/custom/my_glowing_block
+
+    blocks:
+      default:my_glowing_block:
+        loot:
+          template: default:loot_table/basic
+          arguments:
+            item: default:my_glowing_block
+        settings:
+          template:
+            - default:sound/wood
+            - default:hardness/none
+          overrides:
+            push-reaction: destroy
+            replaceable: false
+            luminance: 15
+            item: default:my_glowing_block
+        state:
+          state: redstone_torch[lit=false]
+
+    recipes:
+      default:my_glowing_block:
+        type: shaped
+        pattern:
+          - 'A'
+          - 'B'
+        ingredients:
+          A: minecraft:glowstone_dust
+          B: minecraft:stick
+        result:
+          id: default:my_glowing_block
+          count: 1
+    ```
+
+    <Note>
+    The `texture` field under `items` points to a resource pack path. Place your texture PNG at `plugins/CraftEngine/resources/default/resourcepack/assets/minecraft/textures/block/custom/my_glowing_block.png` before reloading so the resource pack can include it.
+    </Note>
+  </Step>
+
+  <Step title="Understand the amethyst_torch reference">
+    The full `amethyst_torch.yml` from the default pack shows how a more complex block works — including wall-mounted variants, directional state properties, and particle effects. Key sections to notice:
+
+    ```yaml
+    # Item section — inventory item, model, and placement behaviour
+    items:
+      default:amethyst_torch:
+        data:
+          item-name: <!i><lang:item.default.amethyst_torch>
+        texture: minecraft:block/custom/amethyst_torch
+        behavior:
+          - type: wall_block_item
+            block: default:amethyst_wall_torch
+          - type: block_item
+            block: default:amethyst_torch
+
+    # Block section — server-side settings, visual state, and particles
+    blocks:
+      default:amethyst_torch:
+        loot:
+          template: default:loot_table/basic
+          arguments:
+            item: default:amethyst_torch
+        settings:
+          template:
+            - default:sound/wood
+            - default:hardness/none
+          overrides:
+            push-reaction: destroy
+            replaceable: false
+            map-color: 24
+            luminance: 15
+            item: default:amethyst_torch
+        state:
+          state: redstone_torch[lit=false]
+          entity-renderer:
+            item: default:amethyst_standing_torch
+            scale: 1.01
+        behavior:
+          - type: sturdy_base_block
+            direction: down
+            support-types:
+              - center
+          - type: liquid_flowable_block
+          - type: simple_particle_block
+            tick-interval: 10
+            particles:
+              - particle: smoke
+                x: 0.5
+                y: 0.7
+                z: 0.5
+              - particle: dust
+                color: 138,43,226
+                x: 0.5
+                y: 0.7
+                z: 0.5
+
+    # Recipe section — shaped crafting recipe
+    recipes:
+      default:amethyst_torch:
+        type: shaped
+        pattern:
+          - 'A'
+          - 'B'
+        ingredients:
+          A: minecraft:amethyst_shard
+          B: minecraft:stick
+        result:
+          id: default:amethyst_torch
+          count: 1
+    ```
+
+    Every item and block ID follows the pattern `<namespace>:<id>`, where `namespace` matches the `namespace` field in `pack.yml` — `default` for the built-in pack.
+  </Step>
+</Steps>
+
+## Step 3 — Reload CraftEngine
+
+After saving your YAML file, reload the plugin without restarting the server:
+
+```bash
+/ce reload
+```
+
+CraftEngine re-reads all configuration files, regenerates the resource pack ZIP, and re-uploads it to the configured host. If `resend-on-upload` is `true` (the default), connected players receive the updated pack automatically.
+
+<Warning>
+If your YAML contains syntax errors, CraftEngine logs them to the console and skips the affected file. Check the console output after running `/ce reload` to catch any issues before testing in-game.
+</Warning>
+
+## Step 4 — Test in game
+
+Once the reload completes and you have accepted the resource pack prompt:
+
+<Steps>
+  <Step title="Get the item">
+    Use the `item get` command to put the new item in your hand:
+
+    ```bash
+    /ce item get default:my_glowing_block
+    ```
+
+    You should see the item appear in your inventory with the name you configured.
+  </Step>
+
+  <Step title="Place the block">
+    Place the item in the world. If you set `luminance: 15`, the block will emit full light. If you configured a recipe, you can also craft it from the ingredients you defined.
+  </Step>
+
+  <Step title="Browse all registered items">
+    Run `/ce` (with no arguments) to open the item browser GUI and confirm your new block appears in the list alongside the default content.
+  </Step>
+</Steps>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
 <CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
+  <Card title="Configuration overview" icon="sliders" href="/configuration/overview">
+    Learn every top-level section in `config.yml` and how the `resources/` directory is structured.
+  </Card>
+  <Card title="Commands reference" icon="terminal" href="/reference/commands">
+    See every available command and how to enable or disable them in `commands.yml`.
+  </Card>
 </CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>

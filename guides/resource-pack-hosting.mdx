@@ -1,0 +1,139 @@
+---
+title: "Host and deliver the resource pack to players"
+description: "Configure how CraftEngine hosts and sends the generated resource pack — using self-hosting, external hosts, or BungeeCord/Velocity proxy setups."
+---
+
+Every time CraftEngine generates or regenerates the resource pack, it needs a way to serve that file to players when they join your server. CraftEngine supports self-hosting the pack directly from the plugin, pointing players at an external URL, or delegating delivery to a proxy-side plugin when you run BungeeCord or Velocity. All of this is configured under the `resource-pack:` section of `config.yml`.
+
+## Self-hosting
+
+The default configuration uses CraftEngine's built-in HTTP server to host the resource pack. Set it up under `resource-pack.delivery.hosting:`:
+
+```yaml
+resource-pack:
+  delivery:
+    hosting:
+      - type: "self"
+        ip: "localhost"
+        port: 8163
+        protocol: "http"
+        deny-non-minecraft-request: true
+        one-time-token: true
+        strict-validation: false
+        rate-limiting:
+          max-bandwidth-per-second: 5_000_000
+          min-download-speed-per-player: 50_000
+          qps-per-ip: 5/60
+```
+
+<Warning>
+The default `ip: "localhost"` only works if your players connect to the same machine that runs the server. Change it to your server's public IP address before going live; otherwise players outside the machine cannot download the pack.
+</Warning>
+
+### Self-hosting options
+
+| Key | Description |
+| --- | --- |
+| `ip` | The IP address the built-in HTTP server binds to and advertises to clients. Set to your public server IP for internet-accessible servers. |
+| `port` | The TCP port to listen on. Make sure it is open in your firewall. |
+| `protocol` | `http` or `https`. HTTPS requires additional certificate configuration. |
+| `deny-non-minecraft-request` | Reject downloads from anything that does not look like a Minecraft client. |
+| `one-time-token` | Generate a unique download URL per player session, preventing link sharing. |
+| `strict-validation` | Validate that the connecting UUID matches the player who requested the pack. |
+
+### Rate limiting
+
+Rate limiting protects your server's bandwidth when many players connect at once:
+
+| Key | Description |
+| --- | --- |
+| `max-bandwidth-per-second` | Total bytes per second the server will serve across all downloads. `5_000_000` is 5 MB/s. |
+| `min-download-speed-per-player` | Minimum bytes per second a player must sustain. Slower connections are dropped. |
+| `qps-per-ip` | Requests per time window per IP address. `5/60` means 5 requests per 60 seconds. |
+
+## Delivery settings
+
+The `delivery:` block controls how and when the pack is sent to players:
+
+```yaml
+resource-pack:
+  delivery:
+    send-on-join: true
+    kick-if-declined: true
+    kick-if-failed-to-apply: false
+    prompt: "<yellow>To fully experience our server,<newline>please accept our custom resource pack.</yellow>"
+    strict-player-uuid-validation: true
+    auto-upload: true
+    resend-on-upload: true
+    file-to-upload: "./generated/resource_pack.zip"
+```
+
+| Key | Description |
+| --- | --- |
+| `send-on-join` | Automatically prompt players to download the pack when they connect. |
+| `kick-if-declined` | Disconnect players who press "No" on the resource pack prompt. |
+| `kick-if-failed-to-apply` | Disconnect players whose client fails to apply the pack. |
+| `prompt` | MiniMessage text shown in the resource pack prompt dialog. |
+| `strict-player-uuid-validation` | Require a verified player UUID to authorize the download. |
+| `auto-upload` | Upload the pack to the configured host automatically after generation. When `false`, run `/ce upload` manually. |
+| `resend-on-upload` | Re-send the pack to all currently online players after a successful upload. |
+| `file-to-upload` | Path to the generated resource pack zip file. |
+
+## The generated pack path
+
+The pack is written to the path specified by `resource-pack.path`:
+
+```yaml
+resource-pack:
+  path: "./generated/resource_pack.zip"
+```
+
+You can change this to any absolute or relative path. The file at this path is what gets uploaded to your host.
+
+## Manual upload
+
+When `auto-upload: false`, generate and upload the pack manually with:
+
+```bash
+/ce upload
+```
+
+Run this command after any configuration change that affects the resource pack — new blocks, items, textures, or font changes. Online players will receive the updated pack if `resend-on-upload: true`.
+
+## Reloading after changes
+
+To regenerate the resource pack and reload all configuration files without restarting the server:
+
+```bash
+/ce reload
+```
+
+If `auto-upload: true`, the new pack is uploaded and re-sent to players automatically. If not, follow up with `/ce upload`.
+
+## BungeeCord and Velocity
+
+When your players connect through a BungeeCord or Velocity proxy, each backend server runs independently. Sending the resource pack from a backend server works, but players may see multiple prompts as they switch servers, or the pack delivery may be unreliable depending on your proxy configuration.
+
+<Note>
+The CraftEngine `config.yml` comment recommends using a proxy-side resource pack plugin when running BungeeCord or Velocity. Upload the generated `resource_pack.zip` to an external host (such as a CDN or file host) and configure your proxy plugin to deliver it from there. This gives you a single, consistent pack prompt regardless of which backend server the player is on.
+</Note>
+
+The typical workflow for a proxy setup:
+
+1. Generate the pack on one of your backend servers with `/ce reload`.
+2. Copy `generated/resource_pack.zip` to your chosen external host.
+3. Set the resource pack URL in your proxy-side plugin to point to the external host.
+4. Disable `send-on-join` and `auto-upload` in each backend's CraftEngine `config.yml` to prevent duplicate prompts.
+
+## Version range support
+
+CraftEngine can generate overlays that support multiple client versions in a single pack. Configure the minimum and maximum supported client versions:
+
+```yaml
+resource-pack:
+  supported-version:
+    min: server    # match the server version
+    max: latest    # support the newest client
+```
+
+Use specific version strings like `1.20.1` or `1.21.4` if you need exact bounds. CraftEngine generates overlay folders (named according to `overlay-format`) that patch version-specific assets automatically.

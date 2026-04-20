@@ -1,0 +1,88 @@
+---
+title: 'CraftEngine permissions reference'
+description: 'Complete list of CraftEngine permissions for admin commands, player features, and bypass nodes, with default values for each permission.'
+---
+
+CraftEngine uses a flat permission namespace rooted at `ce.command.*` for commands and `craftengine.*` for feature bypass nodes. Permissions follow the defaults set in `commands.yml` — admin and debug nodes default to **op**, while player-facing nodes default to **true** (all players). You can grant, deny, or override any permission through your server's permission plugin.
+
+## Admin command permissions
+
+These permissions gate operator-level commands under `/ce` or `/craftengine`. All default to **op**.
+
+| Permission | Command | Description |
+|---|---|---|
+| `ce.command.admin.reload` | `/ce reload` | Reload plugin configuration, recipes, the resource pack, or all at once. |
+| `ce.command.admin.upload` | `/ce upload` | Manually trigger a resource pack upload. |
+| `ce.command.admin.send_resource_pack` | `/ce feature send-pack` | Resend the resource pack to one or more players. |
+| `ce.command.admin.get_item` | `/ce item get` | Give yourself a custom item by namespaced ID. |
+| `ce.command.admin.give_item` | `/ce item give` | Give a custom item to one or more players. |
+| `ce.command.admin.clear_item` | `/ce item clear` | Remove a custom item from a player's inventory. |
+| `ce.command.admin.item_browser` | `/ce item browser` | Open the item browser GUI as an administrator. |
+| `ce.command.admin.search_usage` | `/ce item search-usage` | Search recipes that consume a given item. |
+| `ce.command.admin.search_recipe` | `/ce item search-recipe` | Search recipes that produce a given item. |
+| `ce.command.admin.totem_animation` | `/ce feature totem-animation` | Trigger a totem animation on a player using a custom item. |
+| `ce.command.admin.resource` | `/ce resource enable/disable/list/create` | Manage resource pack entries (all four subcommands share this node). |
+| `ce.command.admin.set_locale` | `/ce feature locale set` | Override the display locale for a specific player. |
+| `ce.command.admin.unset_locale` | `/ce feature locale unset` | Remove a player's locale override. |
+| `ce.command.admin.set_display_entity_view_distance_scale` | `/ce feature display-entity-view-distance-scale set` | Set the display entity view distance scale for a player (0.125–8). |
+| `ce.command.admin.set_entity_culling_distance_scale` | `/ce feature entity-culling-distance-scale set` | Set the entity culling distance scale for a player (0.125–8). |
+| `ce.command.admin.toggle_entity_culling` | `/ce feature toggle-entity-culling` | Toggle entity culling on or off for a specific player. |
+
+## Player command permissions
+
+These permissions control the player-facing shortcuts. All default to **true** (granted to every player automatically).
+
+| Permission | Command | Description |
+|---|---|---|
+| `ce.command.player.item_browser` | `/ce` | Open the item browser GUI. |
+| `ce.command.player.search_usage` | `/search-usage` | Search for recipes that use an item. |
+| `ce.command.player.search_recipe` | `/search-recipe` | Search for recipes that produce an item. |
+
+<Note>
+  To restrict player commands to a specific group (for example, only paying members), deny
+  `ce.command.player.*` for the default rank and grant it selectively in your permission plugin.
+</Note>
+
+## Debug command permissions
+
+All debug permissions default to **op**. They are intended for server administrators and plugin developers.
+
+| Permission | Command | Description |
+|---|---|---|
+| `ce.command.debug.setblock` | `/ce debug setblock` | Place a custom block state at a specific location. |
+| `ce.command.debug.spawn_furniture` | `/ce debug spawn-furniture` | Spawn a furniture entity at a given location. |
+| `ce.command.debug.get_block_state_registry_id` | `/ce debug get-block-state-registry-id` | Print the registry ID of the targeted block state. |
+| `ce.command.debug.get_block_internal_id` | `/ce debug get-block-internal-id` | Print the internal CraftEngine ID of the targeted block. |
+| `ce.command.debug.state_usage` | `/ce debug visual-state-usage`, `auto-state-usage`, `real-state-usage` | Check visual, auto-assigned, and server-side state slot usage. All three subcommands share this node. |
+| `ce.command.debug.item_data` | `/ce debug item-data` | Inspect the NBT/component data on the held item. |
+| `ce.command.debug.target_block` | `/ce debug target-block` | Print information about the block you are targeting. |
+| `ce.command.debug.is_section_injected` | `/ce debug is-section-injected` | Check whether CraftEngine has injected its data into the current chunk section. |
+| `ce.command.debug.clear_cooldown` | `/ce debug clear-cooldown` | Clear CraftEngine interaction cooldowns. |
+| `ce.command.debug.migrate_templates` | `/ce debug migrate-templates` | Migrate legacy template references. |
+| `ce.command.debug.is_chunk_persistent_loaded` | `/ce debug is-chunk-persistent-loaded` | Check whether the current chunk is persistently loaded. |
+| `ce.command.debug.entity_id` | `/ce debug entity-id` | Print the entity ID of the entity you are looking at. |
+| `ce.command.debug.save_default_resources` | `/ce debug save-default-resources` | Save built-in default resources to disk. |
+| `ce.command.debug.clean_cache` | `/ce debug clean-cache` | Clear all internal caches. |
+| `ce.command.debug.custom_model_data` | `/ce debug custom-model-data` | Print assigned custom model data values. |
+| `ce.command.debug.image` | `/ce debug image` | Print image/emoji resource debug info. |
+| `ce.command.debug.furniture` | `/ce debug furniture` | Print debug info about nearby furniture entities. |
+| `ce.command.debug.optimize_furniture_structure` | `/ce debug optimize-furniture-structure` | Run the furniture structure optimisation pass. |
+| `ce.command.debug.generate_internal_assets` | `/ce debug generate-internal-assets` | Generate internal assets (disabled by default). |
+| `ce.command.debug.test` | `/ce debug test` | Run the internal test routine. |
+
+## Bypass permissions
+
+CraftEngine's illegal-character filter blocks raw emoji/image characters from appearing in chat, books, anvils, signs, and commands. The following permissions let specific players bypass these filters. All default to **op**.
+
+| Permission | Context | Description |
+|---|---|---|
+| `craftengine.filter.bypass.anvil` | Anvil rename text | Skip the illegal-character filter for anvil input. |
+| `craftengine.filter.bypass.book` | Book and quill text | Skip the illegal-character filter for book content. |
+| `craftengine.filter.bypass.chat` | Chat messages | Skip the illegal-character filter for chat. |
+| `craftengine.filter.bypass.command` | Command arguments | Skip the illegal-character filter for command input. |
+| `craftengine.filter.bypass.sign` | Sign text | Skip the illegal-character filter for sign editing. |
+
+<Warning>
+  Granting bypass permissions to untrusted players allows them to inject raw Unicode codepoints
+  used by CraftEngine's image and emoji system. Only grant these nodes to trusted staff.
+</Warning>

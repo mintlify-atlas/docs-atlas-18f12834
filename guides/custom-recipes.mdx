@@ -1,0 +1,214 @@
+---
+title: "Add custom crafting and cooking recipes"
+description: "Create shaped, shapeless, smelting, stonecutting, smithing, and brewing recipes in CraftEngine with support for custom item ingredients."
+---
+
+Recipes in CraftEngine are defined under the `recipes:` section of any configuration YAML file, alongside the `items:` and `blocks:` sections they relate to. CraftEngine supports most vanilla recipe types plus smithing transforms, and all of them accept custom CraftEngine item IDs as ingredients or results — no extra configuration needed.
+
+## Recipe types
+
+| Type | Crafting surface |
+| --- | --- |
+| `shaped` | Crafting table, specific grid pattern |
+| `shapeless` | Crafting table, ingredients in any order |
+| `smelting` | Furnace |
+| `smoking` | Smoker |
+| `blasting` | Blast furnace |
+| `campfire-cooking` | Campfire |
+| `stonecutting` | Stonecutter |
+| `smithing-transform` | Smithing table |
+| `brewing` | Brewing stand |
+
+## Shaped recipe
+
+A shaped recipe requires a `pattern:` that defines the grid layout using single-character keys, and an `ingredients:` map that resolves each key to an item ID. Spaces in the pattern represent empty slots.
+
+```yaml
+recipes:
+  default:amethyst_torch:
+    type: shaped
+    pattern:
+      - 'A'
+      - 'B'
+    ingredients:
+      A: minecraft:amethyst_shard
+      B: minecraft:stick
+    result:
+      id: default:amethyst_torch
+      count: 1
+```
+
+Multi-column patterns work the same way — each string in the `pattern:` list is one row:
+
+```yaml
+recipes:
+  default:chessboard_block:
+    type: shaped
+    pattern:
+      - AB
+      - BA
+    ingredients:
+      A: minecraft:white_terracotta
+      B: minecraft:black_terracotta
+    result:
+      id: default:chessboard_block
+      count: 4
+```
+
+You can add an optional `category:` field (`building`, `redstone`, `equipment`, `misc`) to place the recipe in the correct tab in the recipe book:
+
+```yaml
+recipes:
+  default:topaz_pickaxe:
+    type: shaped
+    category: equipment
+    pattern:
+      - 'AAA'
+      - ' B '
+      - ' B '
+    ingredients:
+      A: default:topaz
+      B: minecraft:stick
+    result:
+      id: default:topaz_pickaxe
+      count: 1
+```
+
+## Shapeless recipe
+
+Shapeless recipes list ingredients as a YAML sequence. The player can arrange them in any order in the crafting grid. Use `#tag_id` syntax to accept any item in a tag:
+
+```yaml
+recipes:
+  default:palm_planks:
+    type: shapeless
+    category: building
+    group: planks
+    ingredients:
+      - '#default:palm_logs'
+    result:
+      id: default:palm_planks
+      count: 4
+```
+
+## Smelting and cooking recipes
+
+All furnace-type recipes share the same structure. Specify the input `ingredient`, optional `experience` reward, and `cookingtime` in ticks (200 ticks = 10 seconds by default):
+
+```yaml
+recipes:
+  default:topaz_from_smelting:
+    type: smelting
+    ingredient: default:topaz_ore
+    experience: 1.0
+    cookingtime: 200
+    result:
+      id: default:topaz
+      count: 1
+```
+
+Use `type: smoking` for smokers, `type: blasting` for blast furnaces, and `type: campfire-cooking` for campfires. Smokers and blast furnaces cook twice as fast as regular furnaces, so you would typically set `cookingtime: 100` for them.
+
+## Stonecutting recipe
+
+Stonecutting recipes have a single `ingredient` and produce a `result`:
+
+```yaml
+recipes:
+  default:topaz_slab_from_stonecutting:
+    type: stonecutting
+    ingredient: default:topaz_block
+    result:
+      id: default:topaz_slab
+      count: 2
+```
+
+## Smithing transform recipe
+
+Smithing transform recipes require a `base` item, an `addition` item, and a `template-type` (the smithing template):
+
+```yaml
+recipes:
+  default:topaz_bow:
+    type: smithing_transform
+    base: minecraft:bow
+    addition: default:topaz
+    template-type: default:topaz
+    result:
+      id: default:topaz_bow
+      count: 1
+```
+
+This is how the topaz tool set upgrades vanilla weapons at the smithing table, using a custom `default:topaz` smithing template item.
+
+## Template-based recipes
+
+The template system lets you define reusable recipe structures. Pass arguments to fill in variable parts:
+
+```yaml
+# Template definition (in templates/recipes.yml)
+templates:
+  default:recipe/planks:
+    type: shapeless
+    category: building
+    group: planks
+    ingredients:
+      - '#${wood_type}_logs'
+    result:
+      id: ${wood_type}_planks
+      count: 4
+
+# Using the template
+recipes:
+  default:palm_planks:
+    template: default:recipe/planks
+    arguments:
+      wood_type: default:palm
+```
+
+The `default:recipe/log_2_wood` template works similarly for crafting wood from logs:
+
+```yaml
+templates:
+  default:recipe/log_2_wood:
+    type: shaped
+    category: building
+    group: bark
+    pattern:
+      - AA
+      - AA
+    ingredients:
+      A: ${wood_type}_log
+    result:
+      id: ${wood_type}_wood
+      count: 3
+```
+
+## Disabling vanilla recipes
+
+You can disable specific vanilla recipes or all of them in `config.yml`:
+
+```yaml
+recipe:
+  enable: true
+  disable-vanilla-recipes:
+    all: false
+    list:
+      - minecraft:wooden_sword
+      - minecraft:stone_hoe
+```
+
+<Warning>
+Setting `all: true` disables every vanilla recipe. The `list:` option is ignored when `all` is `true`. Use the list approach for targeted removals.
+</Warning>
+
+## Third-party item ingredients
+
+To use items from other plugins as ingredients, add them to the `ingredient-sources:` list in `config.yml`:
+
+```yaml
+recipe:
+  ingredient-sources: []
+```
+
+Check the CraftEngine documentation for the supported source format for each compatible plugin.
